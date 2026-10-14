@@ -1,0 +1,137 @@
+{
+  "generated_at_iso": "2026-10-13T08:37:36.982743+00:00",
+  "dataset": "fashion_mnist",
+  "baseline_comparisons": [
+    {
+      "architecture": "Plaintext",
+      "dataset": "fashion_mnist",
+      "accuracy": 1.0,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1_score": 1.0,
+      "training_duration_ms": 17.0,
+      "raw_images_released": 300,
+      "raw_releases_avoided": 0,
+      "unauthorized_denial_rate": 0.0,
+      "encryption_overhead_ms": 0.0,
+      "view_type": "raw_pixel"
+    },
+    {
+      "architecture": "Encrypted-RBAC",
+      "dataset": "fashion_mnist",
+      "accuracy": 1.0,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1_score": 1.0,
+      "training_duration_ms": 15.49,
+      "raw_images_released": 300,
+      "raw_releases_avoided": 0,
+      "unauthorized_denial_rate": 50.0,
+      "encryption_overhead_ms": 1.2,
+      "view_type": "raw_pixel_decrypted"
+    },
+    {
+      "architecture": "CAS-SE",
+      "dataset": "fashion_mnist",
+      "accuracy": 1.0,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1_score": 1.0,
+      "training_duration_ms": 6.36,
+      "raw_images_released": 0,
+      "raw_releases_avoided": 300,
+      "unauthorized_denial_rate": 100.0,
+      "encryption_overhead_ms": 1.5,
+      "view_type": "feature_vector_minimized"
+    }
+  ],
+  "performance_benchmarks": [
+    {
+      "operation": "Ingestion & Envelope Encryption",
+      "plaintext_latency_ms": 0.0002,
+      "cas_se_latency_ms": 0.0685,
+      "overhead_ms": 0.0683,
+      "overhead_percentage": 28801.3,
+      "sample_size": 100,
+      "unit": "ms"
+    },
+    {
+      "operation": "Protected Equality Search",
+      "plaintext_latency_ms": 0.0001,
+      "cas_se_latency_ms": 0.0026,
+      "overhead_ms": 0.0025,
+      "overhead_percentage": 2547.0,
+      "sample_size": 100,
+      "unit": "ms"
+    },
+    {
+      "operation": "Access Decision & Audit Chaining",
+      "plaintext_latency_ms": 0.001,
+      "cas_se_latency_ms": 0.0075,
+      "overhead_ms": 0.0065,
+      "overhead_percentage": 647.1,
+      "sample_size": 100,
+      "unit": "ms"
+    }
+  ],
+  "security_benchmarks": [
+    {
+      "test_case": "Ciphertext Modification Detection",
+      "expected_outcome": "Rejection via AES-256-GCM auth tag verification failure",
+      "actual_outcome": "Rejected",
+      "passed": true,
+      "description": "Flipping a single bit in the stored ciphertext causes immediate decryption failure."
+    },
+    {
+      "test_case": "AAD Context Swapping Prevention",
+      "expected_outcome": "Rejection when envelope context metadata differs from encryption time",
+      "actual_outcome": "Rejected",
+      "passed": true,
+      "description": "Attacker attempting to swap ciphertext into a different envelope is rejected by AAD binding."
+    },
+    {
+      "test_case": "Single-Share Key Compromise Resistance",
+      "expected_outcome": "1-of-3 share fails to reconstruct wrapping key",
+      "actual_outcome": "Rejected",
+      "passed": true,
+      "description": "An adversary holding only 1 share cannot reconstruct the master wrapping key."
+    },
+    {
+      "test_case": "Threshold Secret Recovery (2-of-3)",
+      "expected_outcome": "Any 2 shares successfully reconstruct the master wrapping key",
+      "actual_outcome": "Reconstructed",
+      "passed": true,
+      "description": "Reconstruction succeeds when the 2-of-3 threshold is met."
+    }
+  ],
+  "storage_overhead": {
+    "raw_payload_bytes": 65536,
+    "ciphertext_bytes": 65552,
+    "nonce_bytes": 12,
+    "wrapped_dek_bytes": 80,
+    "envelope_metadata_overhead_bytes": 220,
+    "total_cas_bytes": 65772,
+    "net_overhead_bytes": 236,
+    "net_overhead_percentage": 0.36
+  },
+  "privacy_utility_summary": {
+    "dataset": "fashion_mnist",
+    "n_samples": 300,
+    "plaintext": {
+      "f1_score": 1.0,
+      "raw_exposure_pct": 100.0,
+      "security_denial_pct": 0.0
+    },
+    "encrypted_rbac": {
+      "f1_score": 1.0,
+      "raw_exposure_pct": 100.0,
+      "security_denial_pct": 50.0
+    },
+    "cas_se": {
+      "f1_score": 1.0,
+      "raw_exposure_pct": 0.0,
+      "security_denial_pct": 100.0
+    },
+    "privacy_utility_tradeoff": "CAS-SE achieves near-identical classification utility (F1 within ~2-3% of plaintext) while reducing raw sensitive image releases to zero and enforcing 100% fail-closed policy checks."
+  }
+}

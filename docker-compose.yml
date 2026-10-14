@@ -1,0 +1,198 @@
+version: "3.9"
+
+# =============================================================================
+# CAS-SE Middleware — Docker Compose
+#
+# This file starts the CAS-SE middleware services ALONGSIDE the organization's
+# reference infrastructure (PostgreSQL, MinIO, Redis).
+#
+# In a real deployment, the organization would point DATABASE_URL and
+# OBJECT_STORAGE_* to their own production systems.
+# =============================================================================
+
+services:
+
+  # ---------------------------------------------------------------------------
+  # CAS-SE API (FastAPI)
+  # ---------------------------------------------------------------------------
+  cas-se-api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: cas-se-api
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - ENVIRONMENT=development
+      - DATABASE_URL=postgresql+asyncpg://cas_user:cas_pass@cas-postgres:5432/cas_db
+      - STORAGE_ADAPTER=minio
+      - OBJECT_STORAGE_ENDPOINT=http://cas-minio:9000
+      - OBJECT_STORAGE_ACCESS_KEY=minioadmin
+      - OBJECT_STORAGE_SECRET_KEY=minioadmin
+      - OBJECT_STORAGE_BUCKET=cas-se-envelopes
+      - KEY_SERVICE_ADAPTER=env
+      - CAS_KEK_V1=${CAS_KEK_V1}
+      - CAS_KEK_CURRENT_VERSION=1
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY}
+      - INDEX_HMAC_KEY=${INDEX_HMAC_KEY}
+      - AUDIT_INTEGRITY_KEY=${AUDIT_INTEGRITY_KEY}
+      - OPA_URL=http://cas-se-opa:8181
+      - REDIS_URL=redis://cas-redis:6379/0
+      - CORS_ORIGINS=["http://localhost:3000","http://localhost:5173"]
+    depends_on:
+      cas-postgres:
+        condition: service_healthy
+      cas-minio:
+        condition: service_healthy
+      cas-redis:
+        condition: service_healthy
+      cas-se-opa:
+        condition: service_started
+    volumes:
+      - ./backend:/app
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  # ---------------------------------------------------------------------------
+  # Open Policy Agent (OPA) — context-aware policy evaluation
+  # ---------------------------------------------------------------------------
+  cas-se-opa:
+    image: openpolicyagent/opa:latest-static
+    container_name: cas-se-opa
+    restart: unless-stopped
+    ports:
+      - "8181:8181"
+    command:
+      - "run"
+      - "--server"
+      - "--log-format=json"
+      - "--log-level=info"
+      - "--addr=0.0.0.0:8181"
+      - "/policies"
+    volumes:
+      - ./opa/policies:/policies:ro
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8181/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ---------------------------------------------------------------------------
+  # CAS-SE Worker (Celery — feature extraction, ML training, anomaly detection)
+  # ---------------------------------------------------------------------------
+  cas-se-worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: cas-se-worker
+    restart: unless-stopped
+    command: ["celery", "-A", "app.workers.celery_app", "worker", "--loglevel=info", "--concurrency=2"]
+    environment:
+      - ENVIRONMENT=development
+      - DATABASE_URL=postgresql+asyncpg://cas_user:cas_pass@cas-postgres:5432/cas_db
+      - STORAGE_ADAPTER=minio
+      - OBJECT_STORAGE_ENDPOINT=http://cas-minio:9000
+      - OBJECT_STORAGE_ACCESS_KEY=minioadmin
+      - OBJECT_STORAGE_SECRET_KEY=minioadmin
+      - OBJECT_STORAGE_BUCKET=cas-se-envelopes
+      - KEY_SERVICE_ADAPTER=env
+      - CAS_KEK_V1=${CAS_KEK_V1}
+      - CAS_KEK_CURRENT_VERSION=1
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY}
+      - INDEX_HMAC_KEY=${INDEX_HMAC_KEY}
+      - AUDIT_INTEGRITY_KEY=${AUDIT_INTEGRITY_KEY}
+      - OPA_URL=http://cas-se-opa:8181
+      - REDIS_URL=redis://cas-redis:6379/0
+    depends_on:
+      cas-postgres:
+        condition: service_healthy
+      cas-redis:
+        condition: service_healthy
+    volumes:
+      - ./backend:/app
+
+  # ---------------------------------------------------------------------------
+  # Organization's PostgreSQL (reference — org provides their own in production)
+  # ---------------------------------------------------------------------------
+  cas-postgres:
+    image: postgres:16-alpine
+    container_name: cas-postgres
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: cas_user
+      POSTGRES_PASSWORD: cas_pass
+      POSTGRES_DB: cas_db
+    volumes:
+      - cas_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U cas_user -d cas_db"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # ---------------------------------------------------------------------------
+  # Organization's MinIO (S3-compatible — org provides their own in production)
+  # ---------------------------------------------------------------------------
+  cas-minio:
+    image: minio/minio:latest
+    container_name: cas-minio
+    restart: unless-stopped
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    command: server /data --console-address ":9001"
+    volumes:
+      - cas_minio_data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ---------------------------------------------------------------------------
+  # Redis (worker broker)
+  # ---------------------------------------------------------------------------
+  cas-redis:
+    image: redis:7-alpine
+    container_name: cas-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - cas_redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  # ---------------------------------------------------------------------------
+  # CAS-SE Reference Dashboard (Demonstration Frontend)
+  # ---------------------------------------------------------------------------
+  cas-se-dashboard:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: cas-se-dashboard
+    restart: unless-stopped
+    ports:
+      - "3000:80"
+    depends_on:
+      cas-se-api:
+        condition: service_healthy
+
+volumes:
+  cas_postgres_data:
+  cas_minio_data:
+  cas_redis_data:
+

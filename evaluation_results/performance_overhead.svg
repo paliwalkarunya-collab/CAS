@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 750 350" width="100%" height="100%">
+  <style>
+    .title { font-family: system-ui, sans-serif; font-size: 18px; font-weight: 700; fill: #1e293b; }
+    .subtitle { font-family: system-ui, sans-serif; font-size: 13px; fill: #64748b; }
+    .label { font-family: system-ui, sans-serif; font-size: 13px; font-weight: 600; fill: #334155; }
+    .value { font-family: system-ui, sans-serif; font-size: 12px; font-weight: 700; fill: #0f172a; }
+  </style>
+
+  <rect width="100%" height="100%" fill="#ffffff" rx="8"/>
+  <rect x="15" y="15" width="720" height="320" fill="#f8fafc" rx="8" stroke="#e2e8f0" stroke-width="1"/>
+
+  <text x="35" y="48" class="title">CAS-SE System Latency Benchmarks</text>
+  <text x="35" y="70" class="subtitle">Microsecond-to-millisecond overhead per cryptographic and policy operation</text>
+
+  <!-- Ingestion Bar -->
+  <text x="35" y="120" class="label">Ingestion &amp; Envelope Encryption (64 KB)</text>
+  <!-- Plaintext bar -->
+  <rect x="35" y="132" width="60" height="24" fill="#94a3b8" rx="4"/>
+  <text x="105" y="148" class="value">Plain: 0.000 ms</text>
+  <!-- CAS-SE bar -->
+  <rect x="35" y="162" width="280" height="24" fill="#3b82f6" rx="4"/>
+  <text x="325" y="178" class="value">CAS-SE: 0.069 ms (sub-millisecond encryption)</text>
+
+  <!-- Search Bar -->
+  <text x="35" y="225" class="label">Equality Index Search</text>
+  <!-- Plaintext bar -->
+  <rect x="35" y="237" width="40" height="24" fill="#94a3b8" rx="4"/>
+  <text x="85" y="253" class="value">Plain: 0.0001 ms</text>
+  <!-- CAS-SE bar -->
+  <rect x="35" y="267" width="120" height="24" fill="#10b981" rx="4"/>
+  <text x="165" y="283" class="value">CAS-SE: 0.0026 ms (HMAC-SHA-256 token lookup)</text>
+</svg>

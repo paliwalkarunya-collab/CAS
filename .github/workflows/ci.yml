@@ -1,0 +1,99 @@
+name: CAS-SE CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+jobs:
+  lint-and-type-check:
+    name: Lint & Type Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+      - run: pip install ruff mypy pydantic-settings
+      - name: Run ruff linter
+        run: ruff check backend/
+      - name: Run ruff formatter check
+        run: ruff format --check backend/
+      - name: Run mypy
+        run: |
+          cd backend
+          mypy app/ --ignore-missing-imports
+
+  test:
+    name: Backend Tests
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: cas_user
+          POSTGRES_PASSWORD: cas_pass
+          POSTGRES_DB: cas_db
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 5
+    env:
+      ENVIRONMENT: development
+      DATABASE_URL: postgresql+asyncpg://cas_user:cas_pass@localhost:5432/cas_db
+      STORAGE_ADAPTER: local
+      LOCAL_STORAGE_PATH: /tmp/cas_test_storage
+      KEY_SERVICE_ADAPTER: env
+      CAS_KEK_V1: ${{ secrets.CI_TEST_KEK_V1 || 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=' }}
+      CAS_KEK_CURRENT_VERSION: 1
+      JWT_SECRET_KEY: ci-test-jwt-secret-do-not-use-in-production
+      INDEX_HMAC_KEY: ci-test-hmac-key-do-not-use-in-production-000
+      AUDIT_INTEGRITY_KEY: ci-test-audit-key-do-not-use-in-production-00
+      OPA_URL: http://localhost:8181
+      REDIS_URL: redis://localhost:6379/0
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+      - run: pip install -r backend/requirements.txt
+      - name: Run Alembic migrations
+        run: |
+          cd backend
+          alembic upgrade head
+      - name: Run pytest
+        run: |
+          cd backend
+          pytest tests/ --cov=app --cov-report=xml -v
+      - name: Upload coverage
+        uses: codecov/codecov-action@v4
+        with:
+          files: backend/coverage.xml
+        continue-on-error: true
+
+  security-scan:
+    name: Dependency Security Scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - run: pip install pip-audit
+      - name: Audit Python dependencies
+        run: pip-audit -r backend/requirements.txt

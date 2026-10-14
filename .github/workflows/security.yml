@@ -1,0 +1,40 @@
+name: Security Scan
+
+on:
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  strix-scan:
+    name: Strix AI Security Pentest
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # required for diff-scope resolution
+
+      - name: Install Strix
+        run: curl -sSL https://strix.ai/install | bash
+
+      - name: Run Security Scan
+        env:
+          STRIX_LLM: ${{ secrets.STRIX_LLM }}
+          LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
+        run: strix -n -t ./ --scan-mode quick --max-budget 10
+
+      # Don't fail open: a run that hits the hard budget stop exits 0 but leaves
+      # run.json status "stopped", not "completed". Enforce completion explicitly.
+      - name: Fail unless the scan completed
+        run: |
+          run_json=$(ls -t strix_runs/*/run.json | head -1)
+          status=$(jq -r .status "$run_json")
+          if [ "$status" != "completed" ]; then
+            echo "Strix run status is '$status' — the scan did not complete (likely budget exhausted). Raise --max-budget." >&2
+            exit 1
+          fi
+
+      - name: Upload SARIF
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: strix_runs
