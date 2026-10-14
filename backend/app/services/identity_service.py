@@ -20,7 +20,7 @@ import hashlib
 import uuid
 from datetime import UTC, datetime, timedelta
 
-from jose import JWTError, jwt
+import jwt
 from pwdlib import PasswordHash
 from pwdlib.hashers.argon2 import Argon2Hasher
 
@@ -101,7 +101,7 @@ def decode_access_token(token: str) -> str:
         if not sub:
             raise PermissionError("Token missing subject claim")
         return str(sub)
-    except JWTError as e:
+    except jwt.PyJWTError as e:
         raise PermissionError(f"Invalid access token: {e}") from e
 
 

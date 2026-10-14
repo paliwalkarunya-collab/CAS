@@ -16,7 +16,7 @@ jobs:
         with:
           python-version: "3.13"
           cache: pip
-      - run: pip install ruff mypy pydantic-settings
+      - run: pip install -r backend/requirements.txt
       - name: Run ruff linter
         run: ruff check backend/
       - name: Run ruff formatter check
@@ -95,5 +95,14 @@ jobs:
         with:
           python-version: "3.13"
       - run: pip install pip-audit
-      - name: Audit Python dependencies
+      - name: Audit Python dependencies (JSON report)
+        run: |
+          pip-audit -r backend/requirements.txt --format json > pip_audit.json || true
+      - name: Audit Python dependencies (enforce scan)
         run: pip-audit -r backend/requirements.txt
+      - name: Upload pip-audit report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pip-audit-report
+          path: pip_audit.json
