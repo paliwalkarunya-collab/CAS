@@ -24,12 +24,10 @@ class PolicyResponse(BaseModel):
     updated_at: str
 
     @computed_field
-    @property
     def id(self) -> uuid.UUID:
         return self.policy_id
 
     @computed_field
-    @property
     def version(self) -> int:
         return self.latest_version
 

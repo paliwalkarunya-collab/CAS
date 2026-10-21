@@ -12,8 +12,6 @@ import logging
 import uuid
 from typing import cast
 
-logger = logging.getLogger("cas_se.envelopes")
-
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Request, UploadFile
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -25,6 +23,7 @@ from app.api.auth import get_current_user, require_roles
 from app.core.config import get_settings
 from app.db.session import get_db
 from app.models.models import CASDataEnvelope, CASProtectedIndex, CASUser
+from app.schemas.envelopes import EnvelopeMetadataResponse, UploadResponse
 from app.services.crypto import compute_hmac_token, encode_scope_token, sha256_hex
 from app.services.envelope import (
     build_protected_indexes,
@@ -32,15 +31,9 @@ from app.services.envelope import (
     validate_upload,
 )
 
+logger = logging.getLogger("cas_se.envelopes")
 router = APIRouter()
 settings = get_settings()
-
-
-# ---------------------------------------------------------------------------
-# Schemas (centralised in app.schemas per PRD §10.3)
-# ---------------------------------------------------------------------------
-
-from app.schemas.envelopes import EnvelopeMetadataResponse, UploadResponse  # noqa: E402
 
 # ---------------------------------------------------------------------------
 # Helper: get configured storage adapter and key service
