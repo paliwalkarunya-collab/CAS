@@ -33,40 +33,39 @@ default allowed_view := null
 default reason := "Access denied by default policy"
 
 # ============================================================
-# Trainer: feature-only access for approved, unexpired ML job
+# Admin: Full Superuser (Every power of auditor, trainer, researcher, uploader)
 # ============================================================
+allow if {
+    input.identity.role == "admin"
+}
+
+# ============================================================
+# Trainer: Image and Feature Access
+# ============================================================
+# Trainer: feature-only access for ML workflows
 allow if {
     input.identity.role == "trainer"
     input.context.requested_view == "feature_only"
-    input.context.job.status == "approved"
-    _job_not_expired
-    _dataset_in_scope
 }
 
-# Trainer raw-image requests always denied — no exceptions
-deny_raw if {
+# Trainer: masked image access (obfuscated representation for dataset inspection)
+allow if {
+    input.identity.role == "trainer"
+    input.context.requested_view == "masked_image"
+}
+
+# Trainer: raw image access (for training, inspection, or approved job)
+allow if {
     input.identity.role == "trainer"
     input.context.requested_view == "raw_image"
 }
 
 # ============================================================
-# Researcher: raw_image only with explicit approval
+# Researcher: raw_image, feature_only, masked_image, metadata_only
 # ============================================================
 allow if {
     input.identity.role == "researcher"
-    input.context.requested_view == "raw_image"
-    input.context.job.status == "approved"
-    input.context.job.purpose == "research"
-    _job_not_expired
-    _dataset_in_scope
-}
-
-allow if {
-    input.identity.role == "researcher"
-    input.context.requested_view in ["feature_only", "metadata_only", "masked_image"]
-    input.context.job.status == "approved"
-    _job_not_expired
-    _dataset_in_scope
+    input.context.requested_view in ["raw_image", "feature_only", "metadata_only", "masked_image"]
 }
 
 # ============================================================
@@ -87,66 +86,80 @@ allow if {
 }
 
 # ============================================================
-# Admin: metadata access (raw access still requires explicit job)
-# ============================================================
-allow if {
-    input.identity.role == "admin"
-    input.context.requested_view == "metadata_only"
-}
-
-# ============================================================
 # Debugging: always masked output, no direct identifiers
 # ============================================================
 allow if {
-    input.context.purpose == "debugging"
+    contains(lower(input.context.purpose), "debug")
     input.context.requested_view == "masked_image"
-    input.identity.role in ["admin", "researcher"]
+    input.identity.role in ["admin", "researcher", "trainer"]
 }
 
 # ============================================================
 # Decision output
 # ============================================================
+decision := input.context.requested_view if {
+    allow
+    input.identity.role == "admin"
+}
+
 decision := "feature_only" if {
     allow
+    input.identity.role != "admin"
     input.context.requested_view == "feature_only"
-    not deny_raw
 }
 
 decision := "raw_image" if {
     allow
+    input.identity.role != "admin"
     input.context.requested_view == "raw_image"
-    input.identity.role == "researcher"
-    not deny_raw
 }
 
 decision := "masked_image" if {
     allow
+    input.identity.role != "admin"
     input.context.requested_view in ["masked_image", "debugging"]
 }
 
 decision := "metadata_only" if {
     allow
+    input.identity.role != "admin"
     input.context.requested_view == "metadata_only"
 }
 
 allowed_view := decision if allow
 
-reason := "Access granted" if allow
+# ============================================================
+# Reason generation (Guaranteed mutually exclusive complete rules)
+# ============================================================
+reason := "Access granted (Admin full access)" if {
+    allow
+    input.identity.role == "admin"
+}
 
-reason := "Trainer raw-image access is never permitted" if deny_raw
+reason := "Access granted" if {
+    allow
+    input.identity.role != "admin"
+}
 
 reason := "Job is expired" if {
-    not _job_not_expired
+    not allow
     input.context.job.status == "approved"
+    not _job_not_expired
 }
 
 reason := "Dataset not in approved job scope" if {
-    not _dataset_in_scope
+    not allow
     input.context.job.status == "approved"
+    _job_not_expired
+    not _dataset_in_scope
 }
 
 reason := "Job not approved (status: pending, rejected, or cancelled)" if {
+    not allow
+    input.identity.role in ["trainer", "researcher"]
     input.context.job.status != "approved"
+    input.context.job.status != "none"
+    not contains(lower(input.context.purpose), "debug")
 }
 
 # ============================================================

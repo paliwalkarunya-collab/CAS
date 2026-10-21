@@ -11,7 +11,7 @@ class AccessRequest(BaseModel):
     envelope_id: uuid.UUID
     purpose: str = Field(min_length=1, max_length=512)
     requested_view: str = Field(pattern="^(metadata_only|masked_image|feature_only|raw_image)$")
-    job_id: uuid.UUID | None = None
+    job_id: str | None = None
 
 
 class AccessResponse(BaseModel):

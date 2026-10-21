@@ -63,6 +63,8 @@ build/
 develop-eggs/
 dist/
 downloads/
+*.exe
+opa/*.exe
 eggs/
 .eggs/
 lib/

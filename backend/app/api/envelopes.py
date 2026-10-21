@@ -8,8 +8,11 @@ GET  /envelopes/{id} -- Single envelope metadata
 
 from __future__ import annotations
 
+import logging
 import uuid
 from typing import cast
+
+logger = logging.getLogger("cas_se.envelopes")
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Request, UploadFile
 from sqlalchemy import select
@@ -78,6 +81,7 @@ async def create_envelope(
     file: UploadFile = File(...),
     dataset_id: str | None = Form(None, max_length=256),
     class_label: str | None = Form(None, max_length=256),
+    subject_id: str | None = Form(None, max_length=256),
     sensitivity_label: str = Form("restricted", max_length=64),
     current_user: CASUser = Depends(require_roles("admin", "uploader")),
     db: AsyncSession = Depends(get_db),
@@ -165,6 +169,8 @@ async def create_envelope(
             field_values["dataset_id"] = dataset_id
         if class_label:
             field_values["class_label"] = class_label
+        if subject_id:
+            field_values["subject_id"] = subject_id
 
         if field_values:
             tokens = build_protected_indexes(field_values, settings.index_hmac_key_bytes)
@@ -197,19 +203,20 @@ async def create_envelope(
     except HTTPException:
         raise
     except Exception as exc:
-        await append_audit_event(
-            db=db,
-            event_type="upload",
-            actor_id=current_user.id,
-            actor_role=current_user.role,
-            decision="deny",
-            # Adapter and cryptographic exception text can contain internal
-            # endpoints, object identifiers, or vendor diagnostics. Keep the
-            # public/audit reason stable and investigate detailed errors only
-            # through protected server-side observability.
-            reason="Upload encryption or storage failed",
-        )
-        await db.commit()
+        logger.exception("Upload and encryption failed: %s", exc)
+        await db.rollback()
+        try:
+            await append_audit_event(
+                db=db,
+                event_type="upload",
+                actor_id=current_user.id,
+                actor_role=current_user.role,
+                decision="deny",
+                reason="Upload encryption or storage failed",
+            )
+            await db.commit()
+        except Exception:
+            await db.rollback()
         raise HTTPException(status_code=500, detail="Upload and encryption failed") from exc
 
 

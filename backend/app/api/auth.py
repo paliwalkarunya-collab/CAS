@@ -165,10 +165,10 @@ async def get_current_user(
 
 
 def require_roles(*roles: str) -> Callable[[CASUser], Awaitable[CASUser]]:
-    """Dependency factory: require the current user to have one of `roles`."""
+    """Dependency factory: require the current user to have one of `roles` (admin has all powers)."""
 
     async def _check(current_user: CASUser = Depends(get_current_user)) -> CASUser:
-        if current_user.role not in roles:
+        if current_user.role != "admin" and current_user.role not in roles:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail=f"Role '{current_user.role}' is not permitted for this action",

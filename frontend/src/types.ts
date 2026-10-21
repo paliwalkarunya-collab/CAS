@@ -47,10 +47,14 @@ export interface SearchResultItem {
 }
 
 export interface AccessDecisionResponse {
-  decision: 'allow' | 'deny'
+  decision: string
   reason: string
-  permitted_view?: 'metadata_only' | 'masked_image' | 'feature_only' | 'raw_image'
-  envelope_id: string
+  allowed_view?: 'metadata_only' | 'masked_image' | 'feature_only' | 'raw_image' | null
+  permitted_view?: 'metadata_only' | 'masked_image' | 'feature_only' | 'raw_image' | null
+  envelope_id?: string
+  data_b64?: string | null
+  policy_id?: string | null
+  policy_version?: number | null
   data?: {
     metadata?: Record<string, unknown>
     feature_vector?: number[]
@@ -60,10 +64,10 @@ export interface AccessDecisionResponse {
 }
 
 export interface MLJob {
-  id: string
+  job_id: string
   requester_id: string
   purpose: string
-  dataset_scope: string
+  dataset_scope: string[]
   requested_view: string
   status: 'pending' | 'approved' | 'rejected' | 'in_progress' | 'completed' | 'cancelled' | 'expired'
   expires_at: string
@@ -108,13 +112,16 @@ export interface AnomalyAlert {
 }
 
 export interface PolicyItem {
-  id: string
+  id?: string
+  policy_id?: string
   name: string
   description?: string
-  version: number
+  version?: number
+  latest_version?: number
   is_active: boolean
   rego_policy: string
   created_at: string
+  updated_at?: string
 }
 
 export interface KeyVersionItem {

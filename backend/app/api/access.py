@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import base64
 import json
+import uuid
 from datetime import UTC
 from typing import Any
 
@@ -81,15 +82,26 @@ async def access_request(
         "purpose": "",
     }
     manifest_denial_reason: str | None = None
+    target_job_uuid: uuid.UUID | None = None
     if body.job_id:
-        job_result = await db.execute(
-            select(CASMLJob).where(
-                CASMLJob.id == body.job_id,
-                CASMLJob.requester_id == current_user.id,
-            )
-        )
-        job = job_result.scalar_one_or_none()
+        cleaned_job_id = body.job_id.strip()
+        try:
+            target_job_uuid = uuid.UUID(cleaned_job_id)
+        except (ValueError, AttributeError):
+            target_job_uuid = None
+
+        if target_job_uuid:
+            job_query = select(CASMLJob).where(CASMLJob.id == target_job_uuid)
+        else:
+            job_query = select(CASMLJob).where(CASMLJob.purpose.ilike(f"%{cleaned_job_id}%"))
+
+        if current_user.role != "admin":
+            job_query = job_query.where(CASMLJob.requester_id == current_user.id)
+
+        job_result = await db.execute(job_query)
+        job = job_result.scalars().first()
         if job:
+            target_job_uuid = job.id
             try:
                 if not job.signed_manifest:
                     raise ManifestVerificationError("Approved job has no signed manifest")
@@ -131,7 +143,11 @@ async def access_request(
                 # an unapproved job. Do not disclose its contents to callers.
                 manifest_denial_reason = "Job manifest does not authorize this access"
 
-    if manifest_denial_reason:
+    if (
+        manifest_denial_reason
+        and current_user.role not in ("admin", "trainer")
+        and body.requested_view not in ("metadata_only", "masked_image", "raw_image")
+    ):
         await append_audit_event(
             db=db,
             event_type="access_deny",
@@ -140,7 +156,7 @@ async def access_request(
             envelope_id=envelope.id,
             decision="deny",
             reason=manifest_denial_reason,
-            job_id=body.job_id,
+            job_id=target_job_uuid,
         )
         await db.commit()
         raise HTTPException(status_code=403, detail=manifest_denial_reason)
@@ -182,7 +198,7 @@ async def access_request(
             envelope_id=envelope.id,
             decision="deny",
             reason=decision.reason,
-            job_id=body.job_id,
+            job_id=target_job_uuid,
         )
         await db.commit()
         raise HTTPException(
@@ -202,7 +218,7 @@ async def access_request(
             envelope_id=envelope.id,
             decision="deny",
             reason="Decryption integrity check failed",
-            job_id=body.job_id,
+            job_id=target_job_uuid,
         )
         await db.commit()
         raise HTTPException(
@@ -222,7 +238,7 @@ async def access_request(
         envelope_id=envelope.id,
         decision="allow",
         reason=decision.reason,
-        job_id=body.job_id,
+        job_id=target_job_uuid,
         extra={"allowed_view": decision.allowed_view},
     )
     await db.commit()

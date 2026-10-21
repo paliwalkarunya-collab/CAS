@@ -269,7 +269,7 @@ def _blur_image(image_bytes: bytes, blur_radius: int = 20) -> bytes:
 # HMAC index helpers
 # ---------------------------------------------------------------------------
 
-INDEXED_FIELDS = {"dataset_id", "class_label"}
+INDEXED_FIELDS = {"dataset_id", "subject_id", "class_label"}
 
 
 def build_protected_indexes(

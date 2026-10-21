@@ -33,21 +33,25 @@ export const SearchView: React.FC<SearchViewProps> = ({ onRequestAccess }) => {
   }
 
   return (
-    <div style={{ maxWidth: '1000px', margin: '0 auto', padding: '32px 24px' }}>
-      <h1 className="page-title">Protected Equality Search</h1>
-      <p className="page-desc">
-        Search operations use <strong>HMAC-SHA-256 protected equality tokens</strong>. Search terms are normalized and transformed
-        into cryptographically blind tokens. Plaintext identifiers are <strong>never stored in database index tables</strong>.
-      </p>
+    <div className="app-container fade-in">
+      <div style={{ marginBottom: '28px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
+          <span className="section-label">ZERO-KNOWLEDGE INDEXING</span>
+        </div>
+        <h1 className="page-title">Protected Equality Search</h1>
+        <p className="page-desc">
+          Search operations utilize <strong>HMAC-SHA-256 blind equality tokens</strong>. Plaintext identifiers are never stored or queried in plaintext database index tables.
+        </p>
+      </div>
 
       {/* Search Input Box */}
       <div className="double-bezel" style={{ marginBottom: '28px' }}>
         <div className="double-bezel-inner">
           <form onSubmit={handleSearch}>
-            <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-end', flexWrap: 'wrap' }}>
-              <div style={{ width: '200px' }}>
-                <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: 'var(--text-dim)', marginBottom: '6px' }}>
-                  SEARCH FIELD
+            <div style={{ display: 'flex', gap: '14px', alignItems: 'flex-end', flexWrap: 'wrap' }}>
+              <div style={{ width: '220px' }}>
+                <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: 'var(--text-dim)', marginBottom: '6px', fontFamily: 'var(--font-mono)' }}>
+                  SEARCH INDEX FIELD
                 </label>
                 <select
                   className="select-field"
@@ -59,23 +63,23 @@ export const SearchView: React.FC<SearchViewProps> = ({ onRequestAccess }) => {
                 </select>
               </div>
 
-              <div style={{ flex: 1, minWidth: '260px' }}>
-                <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: 'var(--text-dim)', marginBottom: '6px' }}>
-                  SEARCH VALUE (EXACT MATCH)
+              <div style={{ flex: 1, minWidth: '280px' }}>
+                <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: 'var(--text-dim)', marginBottom: '6px', fontFamily: 'var(--font-mono)' }}>
+                  TERM / IDENTIFIER (EXACT MATCH)
                 </label>
                 <input
                   type="text"
                   className="input-field"
                   value={value}
                   onChange={(e) => setValue(e.target.value)}
-                  placeholder="e.g. fashion_mnist, patient-101"
+                  placeholder="e.g. fashion_mnist, subject-001"
                   required
                 />
               </div>
 
-              <button type="submit" className="btn-primary" disabled={searching} style={{ height: '42px' }}>
-                <Search size={16} />
-                <span>{searching ? 'Computing HMAC...' : 'Search'}</span>
+              <button type="submit" className="btn-primary" disabled={searching} style={{ height: '40px' }}>
+                <Search size={15} />
+                <span>{searching ? 'Computing HMAC...' : 'Search Index'}</span>
               </button>
             </div>
           </form>
@@ -84,10 +88,10 @@ export const SearchView: React.FC<SearchViewProps> = ({ onRequestAccess }) => {
           <div
             style={{
               marginTop: '16px',
-              padding: '12px 14px',
-              background: 'rgba(59, 130, 246, 0.06)',
-              border: '1px solid rgba(59, 130, 246, 0.15)',
-              borderRadius: '6px',
+              padding: '12px 16px',
+              background: 'var(--bg-canvas)',
+              border: '1px solid var(--border-inner)',
+              borderRadius: '7px',
               fontSize: '12px',
               color: 'var(--text-muted)',
               display: 'flex',
@@ -95,9 +99,9 @@ export const SearchView: React.FC<SearchViewProps> = ({ onRequestAccess }) => {
               gap: '10px',
             }}
           >
-            <Shield size={16} color="#60a5fa" style={{ flexShrink: 0 }} />
+            <Shield size={16} color="var(--primary)" style={{ flexShrink: 0 }} />
             <span>
-              Query flow: <code>token = HMAC-SHA-256(index_key, normalize("{value}"))</code>. Matches records without revealing the query text to unauthorized observers.
+              Query Token: <code style={{ color: 'var(--primary)', fontFamily: 'var(--font-mono)' }}>token = HMAC-SHA-256(index_key, normalize("{value}"))</code>. Matching occurs blindly without exposing raw terms to unauthorized observers.
             </span>
           </div>
         </div>
@@ -110,10 +114,10 @@ export const SearchView: React.FC<SearchViewProps> = ({ onRequestAccess }) => {
             alignItems: 'center',
             gap: '8px',
             padding: '12px 16px',
-            background: 'rgba(244, 63, 94, 0.12)',
-            border: '1px solid rgba(244, 63, 94, 0.3)',
-            borderRadius: '6px',
-            color: '#fb7185',
+            background: 'var(--danger-bg)',
+            border: '1px solid var(--danger-border)',
+            borderRadius: '8px',
+            color: '#f87171',
             fontSize: '13px',
             marginBottom: '20px',
           }}
@@ -129,14 +133,15 @@ export const SearchView: React.FC<SearchViewProps> = ({ onRequestAccess }) => {
           <div className="double-bezel-inner">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
               <div style={{ fontSize: '15px', fontWeight: 700, color: '#fff' }}>
-                Search Results ({results.length} envelopes found)
+                Search Results ({results.length} encrypted {results.length === 1 ? 'envelope' : 'envelopes'} found)
               </div>
             </div>
 
             {results.length === 0 ? (
-              <div style={{ padding: '32px 0', textAlign: 'center', color: 'var(--text-dim)' }}>
+              <div style={{ padding: '36px 0', textAlign: 'center', color: 'var(--text-dim)' }}>
                 <FileSearch size={32} style={{ margin: '0 auto 10px', opacity: 0.5 }} />
-                <div>No matching encrypted envelopes found for this search token.</div>
+                <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-main)', marginBottom: '4px' }}>No envelopes matched this token</div>
+                <p style={{ fontSize: '12px' }}>Verify the exact dataset or subject ID and try again.</p>
               </div>
             ) : (
               <div className="table-wrap">
@@ -144,7 +149,7 @@ export const SearchView: React.FC<SearchViewProps> = ({ onRequestAccess }) => {
                   <thead>
                     <tr>
                       <th>ENVELOPE ID</th>
-                      <th>SENSITIVITY</th>
+                      <th>SENSITIVITY CLASSIFICATION</th>
                       <th>ACTION</th>
                     </tr>
                   </thead>
@@ -157,13 +162,15 @@ export const SearchView: React.FC<SearchViewProps> = ({ onRequestAccess }) => {
                         <td>
                           <span
                             style={{
-                              fontSize: '11px',
+                              fontSize: '10.5px',
+                              fontFamily: 'var(--font-mono)',
                               fontWeight: 700,
                               textTransform: 'uppercase',
-                              padding: '2px 8px',
-                              borderRadius: '4px',
-                              background: 'rgba(245, 158, 11, 0.15)',
+                              padding: '3px 8px',
+                              borderRadius: '5px',
+                              background: 'var(--warning-bg)',
                               color: '#fbbf24',
+                              border: '1px solid var(--warning-border)',
                             }}
                           >
                             {r.sensitivity_label || 'RESTRICTED'}
@@ -172,10 +179,10 @@ export const SearchView: React.FC<SearchViewProps> = ({ onRequestAccess }) => {
                         <td>
                           <button
                             className="btn-secondary"
-                            style={{ padding: '6px 12px', fontSize: '12px' }}
+                            style={{ padding: '5px 12px', fontSize: '12px' }}
                             onClick={() => onRequestAccess(r.envelope_id)}
                           >
-                            <KeyRound size={13} />
+                            <KeyRound size={13} color="var(--primary)" />
                             <span>Request Access</span>
                           </button>
                         </td>

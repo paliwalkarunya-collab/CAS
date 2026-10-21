@@ -11,6 +11,8 @@ import {
   ArrowUpRight,
   CheckCircle2,
   RefreshCw,
+  KeyRound,
+  Database,
 } from 'lucide-react'
 
 interface DashboardViewProps {
@@ -53,118 +55,176 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ currentRole, onNav
   }, [currentRole])
 
   return (
-    <div style={{ maxWidth: '1280px', margin: '0 auto', padding: '32px 24px' }}>
+    <div className="app-container fade-in">
       {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '28px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '28px', flexWrap: 'wrap', gap: '16px' }}>
         <div>
-          <h1 className="page-title">Middleware Telemetry & Governance Status</h1>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
+            <span className="section-label">TELEMETRY &amp; SURFACES</span>
+            <span style={{ color: 'var(--text-dim)' }}>/</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: 'var(--success)' }} />
+              <span style={{ fontSize: '11px', fontFamily: 'var(--font-mono)', color: 'var(--success)' }}>ONLINE</span>
+            </div>
+          </div>
+          <h1 className="page-title">Middleware Telemetry &amp; Governance Status</h1>
           <p className="page-desc">
-            Operational dashboard monitoring context-aware policy enforcement, envelope storage, and tamper-evident auditing.
+            Context-aware policy enforcement, AES-256-GCM envelope storage, and tamper-evident HMAC audit verification.
           </p>
         </div>
-        <button className="btn-secondary" onClick={loadData} disabled={loading}>
-          <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
-          <span>Refresh Telemetry</span>
-        </button>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <button className="btn-secondary" onClick={loadData} disabled={loading}>
+            <RefreshCw size={13} className={loading ? 'animate-spin' : ''} />
+            <span>Refresh</span>
+          </button>
+        </div>
       </div>
 
-      {/* Primary Telemetry Grid */}
-      <div className="grid-4" style={{ marginBottom: '28px' }}>
-        {/* Card 1: Envelopes */}
-        <div className="double-bezel">
-          <div className="double-bezel-inner">
-            <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--text-dim)', marginBottom: '8px' }}>
-              <span style={{ fontSize: '11px', fontFamily: 'var(--font-mono)', fontWeight: 700 }}>ENCRYPTED ENVELOPES</span>
-              <Lock size={16} color="#60a5fa" />
+      {/* Primary Telemetry Grid: Asymmetric Layout */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(12, 1fr)', gap: '16px', marginBottom: '28px' }}>
+        {/* Card 1: Envelopes (Span 4) */}
+        <div className="double-bezel" style={{ gridColumn: 'span 4' }}>
+          <div className="double-bezel-inner" style={{ height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+            <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                <span className="section-label">ENCRYPTED ENVELOPES</span>
+                <div style={{ padding: '6px', borderRadius: '6px', background: 'var(--primary-bg)', color: 'var(--primary)' }}>
+                  <Lock size={15} />
+                </div>
+              </div>
+
+              {loading && !telemetry ? (
+                <div className="skeleton" style={{ height: '36px', width: '90px', marginBottom: '8px' }} />
+              ) : (
+                <div style={{ fontSize: '32px', fontWeight: 800, color: '#fff', marginBottom: '6px', fontFamily: 'var(--font-mono)', letterSpacing: '-0.03em' }}>
+                  {telemetry ? telemetry.total_envelopes : '0'}
+                </div>
+              )}
+
+              <div style={{ fontSize: '12px', color: 'var(--text-muted)', lineHeight: 1.5 }}>
+                AES-256-GCM encrypted payloads stored with randomized DEKs.
+              </div>
             </div>
-            <div style={{ fontSize: '28px', fontWeight: 800, color: '#fff', marginBottom: '4px' }}>
-              {telemetry ? telemetry.total_envelopes : '--'}
-            </div>
-            <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-              AES-256-GCM blobs in {telemetry?.storage_adapter?.toUpperCase() || 'OBJECT STORAGE'}
+
+            <div style={{ marginTop: '16px', paddingTop: '12px', borderTop: '1px solid var(--border-inner)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', fontFamily: 'var(--font-mono)', color: 'var(--text-dim)' }}>
+                <Database size={12} />
+                <span>ADAPTER</span>
+              </div>
+              <span style={{ fontSize: '11px', fontFamily: 'var(--font-mono)', color: 'var(--primary)', fontWeight: 600 }}>
+                {telemetry?.storage_adapter?.toUpperCase() || 'LOCAL_DISK'}
+              </span>
             </div>
           </div>
         </div>
 
-        {/* Card 2: Audit Trail */}
-        {/* Card 2: Audit Integrity */}
+        {/* Card 2: Audit Integrity (Span 4) */}
         <div
           className="double-bezel"
-          style={{ cursor: 'pointer' }}
+          style={{ gridColumn: 'span 4', cursor: 'pointer' }}
           onClick={() => onNavigate('audit_verify')}
           title="Inspect and Verify Cryptographic Audit Chain"
         >
-          <div className="double-bezel-inner">
-            <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--text-dim)', marginBottom: '8px' }}>
-              <span style={{ fontSize: '11px', fontFamily: 'var(--font-mono)', fontWeight: 700 }}>AUDIT CHAIN INTEGRITY</span>
-              <FileCheck2 size={16} color="#34d399" />
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-              <span style={{ fontSize: '28px', fontWeight: 800, color: '#fff' }}>
-                {telemetry ? telemetry.total_audit_events : '--'}
-              </span>
-              {chainValid !== null && (
-                <span
-                  style={{
-                    fontSize: '11px',
-                    fontWeight: 700,
-                    padding: '2px 8px',
-                    borderRadius: '4px',
-                    background: chainValid ? 'rgba(16, 185, 129, 0.15)' : 'rgba(244, 63, 94, 0.15)',
-                    color: chainValid ? '#34d399' : '#fb7185',
-                    border: `1px solid ${chainValid ? 'rgba(16, 185, 129, 0.3)' : 'rgba(244, 63, 94, 0.3)'}`,
-                  }}
-                >
-                  {chainValid ? 'INTACT' : 'TAMPERED'}
-                </span>
+          <div className="double-bezel-inner" style={{ height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+            <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                <span className="section-label">AUDIT CHAIN INTEGRITY</span>
+                <div style={{ padding: '6px', borderRadius: '6px', background: chainValid ? 'var(--success-bg)' : 'var(--danger-bg)', color: chainValid ? 'var(--success)' : 'var(--danger)' }}>
+                  <FileCheck2 size={15} />
+                </div>
+              </div>
+
+              {loading && !telemetry ? (
+                <div className="skeleton" style={{ height: '36px', width: '90px', marginBottom: '8px' }} />
+              ) : (
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: '10px', marginBottom: '6px' }}>
+                  <span style={{ fontSize: '32px', fontWeight: 800, color: '#fff', fontFamily: 'var(--font-mono)', letterSpacing: '-0.03em' }}>
+                    {telemetry ? telemetry.total_audit_events : '0'}
+                  </span>
+                  {chainValid !== null && (
+                    <span
+                      style={{
+                        fontSize: '10.5px',
+                        fontFamily: 'var(--font-mono)',
+                        fontWeight: 700,
+                        padding: '2px 8px',
+                        borderRadius: '4px',
+                        background: chainValid ? 'var(--success-bg)' : 'var(--danger-bg)',
+                        color: chainValid ? 'var(--success)' : 'var(--danger)',
+                        border: `1px solid ${chainValid ? 'var(--success-border)' : 'var(--danger-border)'}`,
+                      }}
+                    >
+                      {chainValid ? 'VERIFIED' : 'TAMPERED'}
+                    </span>
+                  )}
+                </div>
               )}
+
+              <div style={{ fontSize: '12px', color: 'var(--text-muted)', lineHeight: 1.5 }}>
+                Cryptographic SHA-256 HMAC hash chain. Zero unverified log mutations.
+              </div>
             </div>
-            <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>HMAC-SHA-256 hash linked • Click to verify</div>
+
+            <div style={{ marginTop: '16px', paddingTop: '12px', borderTop: '1px solid var(--border-inner)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <span style={{ fontSize: '11px', color: 'var(--text-dim)', fontFamily: 'var(--font-mono)' }}>CLICK TO VERIFY CHAIN</span>
+              <ArrowUpRight size={13} color="var(--primary)" />
+            </div>
           </div>
         </div>
 
-        {/* Card 3: Active ML Jobs */}
-        <div className="double-bezel">
-          <div className="double-bezel-inner">
-            <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--text-dim)', marginBottom: '8px' }}>
-              <span style={{ fontSize: '11px', fontFamily: 'var(--font-mono)', fontWeight: 700 }}>ACTIVE ML JOBS</span>
-              <Cpu size={16} color="#a78bfa" />
+        {/* Card 3: Active ML Jobs (Span 2) */}
+        <div className="double-bezel" style={{ gridColumn: 'span 2' }}>
+          <div className="double-bezel-inner" style={{ height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+            <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                <span className="section-label">ML JOBS</span>
+                <Cpu size={15} color="var(--primary)" />
+              </div>
+              {loading && !telemetry ? (
+                <div className="skeleton" style={{ height: '36px', width: '60px', marginBottom: '8px' }} />
+              ) : (
+                <div style={{ fontSize: '32px', fontWeight: 800, color: '#fff', marginBottom: '6px', fontFamily: 'var(--font-mono)' }}>
+                  {telemetry ? telemetry.active_ml_jobs : '0'}
+                </div>
+              )}
+              <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Scoped manifests</div>
             </div>
-            <div style={{ fontSize: '28px', fontWeight: 800, color: '#fff', marginBottom: '4px' }}>
-              {telemetry ? telemetry.active_ml_jobs : '--'}
+
+            <div style={{ marginTop: '16px', paddingTop: '12px', borderTop: '1px solid var(--border-inner)' }}>
+              <span style={{ fontSize: '10.5px', fontFamily: 'var(--font-mono)', color: 'var(--text-dim)' }}>BOUND WORKFLOWS</span>
             </div>
-            <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Approved, scoped &amp; time-bound</div>
           </div>
         </div>
 
-        {/* Card 4: Anomaly Alerts */}
-        <div className="double-bezel">
-          <div className="double-bezel-inner">
-            <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--text-dim)', marginBottom: '8px' }}>
-              <span style={{ fontSize: '11px', fontFamily: 'var(--font-mono)', fontWeight: 700 }}>ANOMALY ALERTS</span>
-              <AlertTriangle size={16} color="#fbbf24" />
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-              <span style={{ fontSize: '28px', fontWeight: 800, color: '#fff' }}>
-                {telemetry ? telemetry.total_anomalies : '--'}
-              </span>
-              {unreviewedAnomalies > 0 && (
-                <span
-                  style={{
-                    fontSize: '11px',
-                    fontWeight: 700,
-                    padding: '2px 8px',
-                    borderRadius: '4px',
-                    background: 'rgba(245, 158, 11, 0.15)',
-                    color: '#fbbf24',
-                    border: '1px solid rgba(245, 158, 11, 0.3)',
-                  }}
-                >
-                  {unreviewedAnomalies} NEW
-                </span>
+        {/* Card 4: Anomalies (Span 2) */}
+        <div className="double-bezel" style={{ gridColumn: 'span 2' }}>
+          <div className="double-bezel-inner" style={{ height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+            <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                <span className="section-label">ANOMALIES</span>
+                <AlertTriangle size={15} color="var(--warning)" />
+              </div>
+              {loading && !telemetry ? (
+                <div className="skeleton" style={{ height: '36px', width: '60px', marginBottom: '8px' }} />
+              ) : (
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px', marginBottom: '6px' }}>
+                  <span style={{ fontSize: '32px', fontWeight: 800, color: '#fff', fontFamily: 'var(--font-mono)' }}>
+                    {telemetry ? telemetry.total_anomalies : '0'}
+                  </span>
+                  {unreviewedAnomalies > 0 && (
+                    <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', fontWeight: 700, color: 'var(--warning)' }}>
+                      +{unreviewedAnomalies} NEW
+                    </span>
+                  )}
+                </div>
               )}
+              <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>IsolationForest</div>
             </div>
-            <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>IsolationForest audit heuristics</div>
+
+            <div style={{ marginTop: '16px', paddingTop: '12px', borderTop: '1px solid var(--border-inner)' }}>
+              <span style={{ fontSize: '10.5px', fontFamily: 'var(--font-mono)', color: 'var(--text-dim)' }}>HEURISTICS CHECK</span>
+            </div>
           </div>
         </div>
       </div>
@@ -174,48 +234,61 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ currentRole, onNav
         {/* Architecture Security Invariants */}
         <div className="double-bezel">
           <div className="double-bezel-inner">
-            <h2 style={{ fontSize: '16px', fontWeight: 700, marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <ShieldCheck size={18} color="#34d399" />
-              <span>Core Security Invariants</span>
-            </h2>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
+              <h2 style={{ fontSize: '15px', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '8px', color: '#fff' }}>
+                <ShieldCheck size={17} color="var(--success)" />
+                <span>Core Security Invariants</span>
+              </h2>
+              <span className="badge-role admin">ENFORCED</span>
+            </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-              <div style={{ display: 'flex', gap: '12px' }}>
-                <CheckCircle2 size={16} color="#34d399" style={{ flexShrink: 0, marginTop: '2px' }} />
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
+                <div style={{ padding: '3px', borderRadius: '4px', background: 'var(--success-bg)', color: 'var(--success)', marginTop: '2px' }}>
+                  <CheckCircle2 size={14} />
+                </div>
                 <div>
-                  <div style={{ fontSize: '13px', fontWeight: 600, color: '#fff' }}>Zero Plaintext in PostgreSQL</div>
-                  <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-                    Payloads are strictly stored as AES-256-GCM ciphertext in object storage with randomized keys.
+                  <div style={{ fontSize: '13px', fontWeight: 600, color: '#fff', marginBottom: '2px' }}>Zero Plaintext in PostgreSQL</div>
+                  <div style={{ fontSize: '12px', color: 'var(--text-muted)', lineHeight: 1.5 }}>
+                    Payloads are strictly stored as AES-256-GCM ciphertext in object storage with randomized DEKs.
                   </div>
                 </div>
               </div>
 
-              <div style={{ display: 'flex', gap: '12px' }}>
-                <CheckCircle2 size={16} color="#34d399" style={{ flexShrink: 0, marginTop: '2px' }} />
+              <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
+                <div style={{ padding: '3px', borderRadius: '4px', background: 'var(--success-bg)', color: 'var(--success)', marginTop: '2px' }}>
+                  <CheckCircle2 size={14} />
+                </div>
                 <div>
-                  <div style={{ fontSize: '13px', fontWeight: 600, color: '#fff' }}>Fail-Closed OPA Policy Enforcement</div>
-                  <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+                  <div style={{ fontSize: '13px', fontWeight: 600, color: '#fff', marginBottom: '2px' }}>Fail-Closed OPA Policy Enforcement</div>
+                  <div style={{ fontSize: '12px', color: 'var(--text-muted)', lineHeight: 1.5 }}>
                     Every access request verifies identity, purpose, view type, and job state. OPA downtime = immediate deny.
                   </div>
                 </div>
               </div>
 
-              <div style={{ display: 'flex', gap: '12px' }}>
-                <CheckCircle2 size={16} color="#34d399" style={{ flexShrink: 0, marginTop: '2px' }} />
+              <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
+                <div style={{ padding: '3px', borderRadius: '4px', background: 'var(--success-bg)', color: 'var(--success)', marginTop: '2px' }}>
+                  <CheckCircle2 size={14} />
+                </div>
                 <div>
-                  <div style={{ fontSize: '13px', fontWeight: 600, color: '#fff' }}>Data Minimization by Default</div>
-                  <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+                  <div style={{ fontSize: '13px', fontWeight: 600, color: '#fff', marginBottom: '2px' }}>Data Minimization by Default</div>
+                  <div style={{ fontSize: '12px', color: 'var(--text-muted)', lineHeight: 1.5 }}>
                     ML trainers receive compact 64-dim CNN feature vectors. Raw image access is blocked by policy.
                   </div>
                 </div>
               </div>
 
-              <div style={{ display: 'flex', gap: '12px' }}>
-                <CheckCircle2 size={16} color="#34d399" style={{ flexShrink: 0, marginTop: '2px' }} />
+              <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
+                <div style={{ padding: '3px', borderRadius: '4px', background: 'var(--primary-bg)', color: 'var(--primary)', marginTop: '2px' }}>
+                  <KeyRound size={14} />
+                </div>
                 <div>
-                  <div style={{ fontSize: '13px', fontWeight: 600, color: '#fff' }}>Key Rotation Without Payload Re-encryption</div>
-                  <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-                    Active KEK Version is <strong>v{telemetry?.kek_current_version || 1}</strong>. Rotating wrapping keys only rewraps DEKs in milliseconds.
+                  <div style={{ fontSize: '13px', fontWeight: 600, color: '#fff', marginBottom: '2px' }}>
+                    Key Rotation Without Payload Re-encryption
+                  </div>
+                  <div style={{ fontSize: '12px', color: 'var(--text-muted)', lineHeight: 1.5 }}>
+                    Active Master KEK is <strong style={{ color: 'var(--primary)', fontFamily: 'var(--font-mono)' }}>v{telemetry?.kek_current_version || 1}</strong>. Rotating keys only rewraps DEKs in milliseconds.
                   </div>
                 </div>
               </div>
@@ -226,55 +299,55 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ currentRole, onNav
         {/* Quick Governance Actions */}
         <div className="double-bezel">
           <div className="double-bezel-inner">
-            <h2 style={{ fontSize: '16px', fontWeight: 700, marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <Layers size={18} color="#60a5fa" />
-              <span>Quick Navigation</span>
+            <h2 style={{ fontSize: '15px', fontWeight: 700, marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '8px', color: '#fff' }}>
+              <Layers size={17} color="var(--primary)" />
+              <span>Quick Governance Actions</span>
             </h2>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '9px' }}>
               <button
                 className="btn-secondary"
-                style={{ justifyContent: 'space-between', padding: '12px 16px' }}
+                style={{ justifyContent: 'space-between', padding: '11px 15px' }}
                 onClick={() => onNavigate('upload')}
               >
                 <span>Upload Encrypted Dataset Record</span>
-                <ArrowUpRight size={14} color="var(--text-dim)" />
+                <ArrowUpRight size={14} color="var(--primary)" />
               </button>
 
               <button
                 className="btn-secondary"
-                style={{ justifyContent: 'space-between', padding: '12px 16px' }}
+                style={{ justifyContent: 'space-between', padding: '11px 15px' }}
                 onClick={() => onNavigate('search')}
               >
                 <span>Execute Protected Equality Search</span>
-                <ArrowUpRight size={14} color="var(--text-dim)" />
+                <ArrowUpRight size={14} color="var(--primary)" />
               </button>
 
               <button
                 className="btn-secondary"
-                style={{ justifyContent: 'space-between', padding: '12px 16px' }}
+                style={{ justifyContent: 'space-between', padding: '11px 15px' }}
                 onClick={() => onNavigate('access')}
               >
                 <span>Test Context-Aware Access Request</span>
-                <ArrowUpRight size={14} color="var(--text-dim)" />
+                <ArrowUpRight size={14} color="var(--primary)" />
               </button>
 
               <button
                 className="btn-secondary"
-                style={{ justifyContent: 'space-between', padding: '12px 16px' }}
+                style={{ justifyContent: 'space-between', padding: '11px 15px' }}
                 onClick={() => onNavigate('benchmarks')}
               >
                 <span>Inspect Privacy vs. Utility Benchmarks</span>
-                <ArrowUpRight size={14} color="var(--text-dim)" />
+                <ArrowUpRight size={14} color="var(--primary)" />
               </button>
 
               <button
                 className="btn-secondary"
-                style={{ justifyContent: 'space-between', padding: '12px 16px' }}
+                style={{ justifyContent: 'space-between', padding: '11px 15px' }}
                 onClick={() => onNavigate('audit_verify')}
               >
                 <span>Run Cryptographic Audit-Chain Verifier</span>
-                <ArrowUpRight size={14} color="var(--text-dim)" />
+                <ArrowUpRight size={14} color="var(--primary)" />
               </button>
             </div>
           </div>

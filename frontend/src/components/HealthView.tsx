@@ -31,17 +31,20 @@ export const HealthView: React.FC = () => {
   }, [])
 
   return (
-    <div style={{ maxWidth: '1000px', margin: '0 auto', padding: '32px 24px' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '24px' }}>
+    <div className="app-container fade-in">
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '28px', flexWrap: 'wrap', gap: '16px' }}>
         <div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
+            <span className="section-label">SUBSYSTEM METRICS &amp; PROBES</span>
+          </div>
           <h1 className="page-title">Middleware Health &amp; Subsystem Telemetry</h1>
           <p className="page-desc">
-            Operational status of pluggable adapters, policy engines, and security middleware layers.
+            Operational status of pluggable storage adapters, cryptographic key services, and security invariant layers.
           </p>
         </div>
 
         <button className="btn-secondary" onClick={loadHealth} disabled={loading}>
-          <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
+          <RefreshCw size={13} className={loading ? 'animate-spin' : ''} />
           <span>Ping Subsystems</span>
         </button>
       </div>
@@ -50,10 +53,10 @@ export const HealthView: React.FC = () => {
         <div
           style={{
             padding: '12px 16px',
-            background: 'rgba(244, 63, 94, 0.15)',
-            border: '1px solid rgba(244, 63, 94, 0.3)',
+            background: 'var(--danger-bg)',
+            border: '1px solid var(--danger-border)',
             borderRadius: '8px',
-            color: '#fb7185',
+            color: '#f87171',
             fontSize: '13px',
             marginBottom: '20px',
             fontWeight: 600,
@@ -65,41 +68,43 @@ export const HealthView: React.FC = () => {
 
       {/* Main Status Banner */}
       <div className="double-bezel" style={{ marginBottom: '28px' }}>
-        <div className="double-bezel-inner" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div className="double-bezel-inner" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
             <div
               style={{
-                width: '40px',
-                height: '40px',
+                width: '42px',
+                height: '42px',
                 borderRadius: '10px',
-                background: health?.status === 'ok' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(244, 63, 94, 0.15)',
+                background: health?.status === 'ok' ? 'var(--success-bg)' : 'var(--danger-bg)',
+                border: `1px solid ${health?.status === 'ok' ? 'var(--success-border)' : 'var(--danger-border)'}`,
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
+                color: health?.status === 'ok' ? 'var(--success)' : 'var(--danger)',
               }}
             >
-              <Activity size={20} color={health?.status === 'ok' ? '#34d399' : '#fb7185'} />
+              <Activity size={22} />
             </div>
             <div>
-              <div style={{ fontSize: '18px', fontWeight: 800, color: '#fff' }}>
-                {health?.service || 'CAS-SE Middleware'} — {health?.status === 'ok' ? 'HEALTHY' : 'UNREACHABLE'}
+              <div style={{ fontSize: '17px', fontWeight: 800, color: '#fff' }}>
+                {health?.service || 'CAS-SE Middleware Engine'} — {health?.status === 'ok' ? 'HEALTHY' : 'UNREACHABLE'}
               </div>
-              <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-                Version: {health?.version || '0.1.0'} • Server-generated UTC timestamps
+              <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '2px', fontFamily: 'var(--font-mono)' }}>
+                Version: {health?.version || '0.1.0'} • Server-generated UTC probe timestamps
               </div>
             </div>
           </div>
 
           <span
             style={{
-              fontSize: '12px',
+              fontSize: '11px',
               fontFamily: 'var(--font-mono)',
               fontWeight: 700,
               padding: '4px 12px',
               borderRadius: '6px',
-              background: 'rgba(16, 185, 129, 0.15)',
-              color: '#34d399',
-              border: '1px solid rgba(16, 185, 129, 0.3)',
+              background: 'var(--success-bg)',
+              color: '#4ade80',
+              border: '1px solid var(--success-border)',
             }}
           >
             ALL INVARIANTS PASS
@@ -112,12 +117,12 @@ export const HealthView: React.FC = () => {
         {/* Subsystem 1: Storage Adapter */}
         <div className="double-bezel">
           <div className="double-bezel-inner">
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px', color: '#60a5fa' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px', color: 'var(--primary)' }}>
               <HardDrive size={16} />
-              <span style={{ fontSize: '12px', fontWeight: 700, textTransform: 'uppercase' }}>Storage Adapter</span>
+              <span className="section-label" style={{ color: 'var(--primary)' }}>Storage Adapter</span>
             </div>
-            <div style={{ fontSize: '16px', fontWeight: 700, color: '#fff', marginBottom: '4px' }}>
-              {telemetry?.storage_adapter?.toUpperCase() || 'MINIO S3'}
+            <div style={{ fontSize: '17px', fontWeight: 800, color: '#fff', marginBottom: '4px', fontFamily: 'var(--font-mono)' }}>
+              {telemetry?.storage_adapter?.toUpperCase() || 'LOCAL_DISK'}
             </div>
             <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
               Ciphertext blob persistence
@@ -128,15 +133,15 @@ export const HealthView: React.FC = () => {
         {/* Subsystem 2: Key Service Adapter */}
         <div className="double-bezel">
           <div className="double-bezel-inner">
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px', color: '#f59e0b' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px', color: 'var(--warning)' }}>
               <KeyRound size={16} />
-              <span style={{ fontSize: '12px', fontWeight: 700, textTransform: 'uppercase' }}>Key Management</span>
+              <span className="section-label" style={{ color: 'var(--warning)' }}>Key Management</span>
             </div>
-            <div style={{ fontSize: '16px', fontWeight: 700, color: '#fff', marginBottom: '4px' }}>
-              v{telemetry?.kek_current_version || 1} ({telemetry?.key_adapter?.toUpperCase() || 'ENV / SPLIT'})
+            <div style={{ fontSize: '17px', fontWeight: 800, color: '#fff', marginBottom: '4px', fontFamily: 'var(--font-mono)' }}>
+              v{telemetry?.kek_current_version || 1} ({telemetry?.key_adapter?.toUpperCase() || 'SPLIT / ENV'})
             </div>
             <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-              Envelope KEK wrapping
+              Master KEK envelope wrapping
             </div>
           </div>
         </div>
@@ -144,15 +149,15 @@ export const HealthView: React.FC = () => {
         {/* Subsystem 3: Database Overlay */}
         <div className="double-bezel">
           <div className="double-bezel-inner">
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px', color: '#a78bfa' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px', color: '#c084fc' }}>
               <Database size={16} />
-              <span style={{ fontSize: '12px', fontWeight: 700, textTransform: 'uppercase' }}>PostgreSQL Overlay</span>
+              <span className="section-label" style={{ color: '#c084fc' }}>Database Overlay</span>
             </div>
-            <div style={{ fontSize: '16px', fontWeight: 700, color: '#fff', marginBottom: '4px' }}>
-              ACTIVE
+            <div style={{ fontSize: '17px', fontWeight: 800, color: '#fff', marginBottom: '4px', fontFamily: 'var(--font-mono)' }}>
+              POSTGRESQL ACTIVE
             </div>
             <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-              Isolated <code>cas_*</code> tables
+              Isolated non-plaintext <code style={{ fontFamily: 'var(--font-mono)' }}>cas_*</code> tables
             </div>
           </div>
         </div>
@@ -161,26 +166,26 @@ export const HealthView: React.FC = () => {
       {/* Subsystem Telemetry Details */}
       <div className="double-bezel">
         <div className="double-bezel-inner">
-          <h2 style={{ fontSize: '15px', fontWeight: 700, marginBottom: '16px' }}>
+          <h2 style={{ fontSize: '15px', fontWeight: 700, marginBottom: '16px', color: '#fff' }}>
             Live Telemetry Summary Counters
           </h2>
 
           <div className="grid-2" style={{ gap: '12px', fontSize: '13px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 14px', background: 'rgba(255,255,255,0.02)', borderRadius: '6px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 14px', background: 'var(--bg-canvas)', borderRadius: '7px', border: '1px solid var(--border-inner)' }}>
               <span style={{ color: 'var(--text-dim)' }}>Total Stored Envelopes:</span>
-              <span style={{ fontWeight: 700, color: '#fff' }}>{telemetry?.total_envelopes || 0}</span>
+              <span style={{ fontWeight: 700, color: '#fff', fontFamily: 'var(--font-mono)' }}>{telemetry?.total_envelopes || 0}</span>
             </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 14px', background: 'rgba(255,255,255,0.02)', borderRadius: '6px' }}>
-              <span style={{ color: 'var(--text-dim)' }}>Total Hash-Chained Audit Events:</span>
-              <span style={{ fontWeight: 700, color: '#fff' }}>{telemetry?.total_audit_events || 0}</span>
+            <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 14px', background: 'var(--bg-canvas)', borderRadius: '7px', border: '1px solid var(--border-inner)' }}>
+              <span style={{ color: 'var(--text-dim)' }}>Total Chained Audit Events:</span>
+              <span style={{ fontWeight: 700, color: '#fff', fontFamily: 'var(--font-mono)' }}>{telemetry?.total_audit_events || 0}</span>
             </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 14px', background: 'rgba(255,255,255,0.02)', borderRadius: '6px' }}>
-              <span style={{ color: 'var(--text-dim)' }}>Active / Approved ML Jobs:</span>
-              <span style={{ fontWeight: 700, color: '#fff' }}>{telemetry?.active_ml_jobs || 0}</span>
+            <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 14px', background: 'var(--bg-canvas)', borderRadius: '7px', border: '1px solid var(--border-inner)' }}>
+              <span style={{ color: 'var(--text-dim)' }}>Active &amp; Approved ML Jobs:</span>
+              <span style={{ fontWeight: 700, color: '#fff', fontFamily: 'var(--font-mono)' }}>{telemetry?.active_ml_jobs || 0}</span>
             </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 14px', background: 'rgba(255,255,255,0.02)', borderRadius: '6px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 14px', background: 'var(--bg-canvas)', borderRadius: '7px', border: '1px solid var(--border-inner)' }}>
               <span style={{ color: 'var(--text-dim)' }}>Unauthorized Requests Denied:</span>
-              <span style={{ fontWeight: 700, color: '#34d399' }}>{telemetry?.unauthorized_requests_denied || 0}</span>
+              <span style={{ fontWeight: 700, color: '#4ade80', fontFamily: 'var(--font-mono)' }}>{telemetry?.unauthorized_requests_denied || 0}</span>
             </div>
           </div>
         </div>

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import type { PolicyItem, UserRole } from '../types'
 import { listPolicies, createPolicy } from '../api'
-import { Shield, PlusCircle, RefreshCw } from 'lucide-react'
+import { Shield, PlusCircle, RefreshCw, FileCode } from 'lucide-react'
 
 interface PoliciesViewProps {
   currentRole: UserRole
@@ -48,7 +48,7 @@ allow if {
 
   useEffect(() => {
     loadPolicies()
-  }, [])
+  }, [currentRole])
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -73,18 +73,21 @@ allow if {
   }
 
   return (
-    <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '32px 24px' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '24px' }}>
+    <div className="app-container fade-in">
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '28px', flexWrap: 'wrap', gap: '16px' }}>
         <div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
+            <span className="section-label">DECLARATIVE ACCESS RULES</span>
+          </div>
           <h1 className="page-title">Open Policy Agent (OPA) Access Policies</h1>
           <p className="page-desc">
-            Context-aware ABAC policies written in Rego. Policies evaluate identity, role, purpose, dataset scope, view type, and expiration.
+            Context-aware ABAC policies declared in Rego. Policies evaluate subject identity, role, purpose, dataset scope, representation view, and job expiration.
           </p>
         </div>
 
         <div style={{ display: 'flex', gap: '10px' }}>
           <button className="btn-secondary" onClick={loadPolicies} disabled={loading}>
-            <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
+            <RefreshCw size={13} className={loading ? 'animate-spin' : ''} />
             <span>Refresh</span>
           </button>
           {currentRole === 'admin' && (
@@ -99,11 +102,14 @@ allow if {
       {showCreate && (
         <div className="double-bezel" style={{ marginBottom: '28px' }}>
           <div className="double-bezel-inner">
-            <h2 style={{ fontSize: '15px', fontWeight: 700, marginBottom: '16px' }}>New Rego Policy Definition</h2>
+            <h2 style={{ fontSize: '15px', fontWeight: 700, marginBottom: '18px', color: '#fff', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <FileCode size={16} color="var(--primary)" />
+              <span>New Rego Policy Definition</span>
+            </h2>
             <form onSubmit={handleCreate}>
               <div className="grid-2" style={{ marginBottom: '16px' }}>
                 <div>
-                  <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: 'var(--text-dim)', marginBottom: '6px' }}>
+                  <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: 'var(--text-dim)', marginBottom: '6px', fontFamily: 'var(--font-mono)' }}>
                     POLICY IDENTIFIER NAME
                   </label>
                   <input
@@ -116,7 +122,7 @@ allow if {
                   />
                 </div>
                 <div>
-                  <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: 'var(--text-dim)', marginBottom: '6px' }}>
+                  <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: 'var(--text-dim)', marginBottom: '6px', fontFamily: 'var(--font-mono)' }}>
                     DESCRIPTION
                   </label>
                   <input
@@ -130,12 +136,12 @@ allow if {
               </div>
 
               <div style={{ marginBottom: '20px' }}>
-                <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: 'var(--text-dim)', marginBottom: '6px' }}>
+                <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: 'var(--text-dim)', marginBottom: '6px', fontFamily: 'var(--font-mono)' }}>
                   REGO POLICY CODE
                 </label>
                 <textarea
                   className="input-field"
-                  style={{ minHeight: '180px', fontFamily: 'var(--font-mono)', fontSize: '12px', lineHeight: 1.5 }}
+                  style={{ minHeight: '180px', fontFamily: 'var(--font-mono)', fontSize: '12px', lineHeight: 1.6 }}
                   value={newRego}
                   onChange={(e) => setNewRego(e.target.value)}
                   required
@@ -144,7 +150,7 @@ allow if {
 
               <button type="submit" className="btn-primary" disabled={creating}>
                 <Shield size={14} />
-                <span>{creating ? 'Saving Policy...' : 'Save & Publish Policy Version'}</span>
+                <span>{creating ? 'Publishing Policy...' : 'Save & Publish Policy Version'}</span>
               </button>
             </form>
           </div>
@@ -155,10 +161,10 @@ allow if {
         <div
           style={{
             padding: '12px 16px',
-            background: 'rgba(244, 63, 94, 0.15)',
-            border: '1px solid rgba(244, 63, 94, 0.3)',
+            background: 'var(--danger-bg)',
+            border: '1px solid var(--danger-border)',
             borderRadius: '8px',
-            color: '#fb7185',
+            color: '#f87171',
             fontSize: '13px',
             marginBottom: '20px',
           }}
@@ -172,88 +178,119 @@ allow if {
         {/* Left: Policy List */}
         <div className="double-bezel">
           <div className="double-bezel-inner">
-            <h2 style={{ fontSize: '15px', fontWeight: 700, marginBottom: '14px' }}>
-              Policy Repository ({policies.length})
-            </h2>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              {policies.map((p) => (
-                <div
-                  key={p.id}
-                  onClick={() => setSelectedPolicy(p)}
-                  style={{
-                    padding: '12px 16px',
-                    borderRadius: '8px',
-                    border: `1px solid ${selectedPolicy?.id === p.id ? 'var(--primary)' : 'var(--border-inner)'}`,
-                    background: selectedPolicy?.id === p.id ? 'var(--bg-bezel)' : 'rgba(255,255,255,0.02)',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                  }}
-                >
-                  <div>
-                    <div style={{ fontSize: '13px', fontWeight: 700, color: '#fff' }}>{p.name}</div>
-                    <div style={{ fontSize: '11px', color: 'var(--text-dim)', marginTop: '2px' }}>
-                      Version {p.version} • {new Date(p.created_at).toLocaleDateString()}
-                    </div>
-                  </div>
-                  <span
-                    style={{
-                      fontSize: '11px',
-                      fontWeight: 700,
-                      padding: '2px 8px',
-                      borderRadius: '4px',
-                      background: 'rgba(16, 185, 129, 0.15)',
-                      color: '#34d399',
-                    }}
-                  >
-                    ACTIVE
-                  </span>
-                </div>
-              ))}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+              <span style={{ fontSize: '14px', fontWeight: 700, color: '#fff' }}>Policy Repository</span>
+              <span style={{ fontSize: '11px', fontFamily: 'var(--font-mono)', color: 'var(--text-dim)' }}>
+                {policies.length} POLICIES
+              </span>
             </div>
+
+            {loading ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '12px 0' }}>
+                <div className="skeleton" style={{ height: '52px', width: '100%' }} />
+                <div className="skeleton" style={{ height: '52px', width: '100%' }} />
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {policies.length === 0 && !loading && (
+                  <div style={{ padding: '32px 16px', textAlign: 'center', color: 'var(--text-dim)', fontSize: '13px' }}>
+                    No access policies found.
+                  </div>
+                )}
+                {policies.map((p) => {
+                  const policyId = p.policy_id || p.id || p.name
+                  const selectedId = selectedPolicy?.policy_id || selectedPolicy?.id || selectedPolicy?.name || ''
+                  const isSelected = selectedId === policyId
+                  const version = p.version ?? p.latest_version ?? 1
+                  return (
+                    <div
+                      key={policyId}
+                      onClick={() => setSelectedPolicy(p)}
+                      style={{
+                        padding: '12px 16px',
+                        borderRadius: '8px',
+                        border: isSelected ? '1px solid var(--primary-border)' : '1px solid var(--border-inner)',
+                        background: isSelected ? 'var(--primary-bg)' : 'var(--bg-canvas)',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        transition: 'all 0.16s ease',
+                      }}
+                    >
+                      <div>
+                        <div style={{ fontSize: '13.5px', fontWeight: 700, color: '#fff' }}>{p.name}</div>
+                        <div style={{ fontSize: '11px', color: 'var(--text-dim)', marginTop: '2px', fontFamily: 'var(--font-mono)' }}>
+                          Version {version} • {p.created_at ? new Date(p.created_at).toLocaleDateString() : 'Active'}
+                        </div>
+                      </div>
+                      <span
+                        style={{
+                          fontSize: '10.5px',
+                          fontFamily: 'var(--font-mono)',
+                          fontWeight: 700,
+                          padding: '3px 8px',
+                          borderRadius: '5px',
+                          background: 'var(--success-bg)',
+                          color: '#4ade80',
+                          border: '1px solid var(--success-border)',
+                        }}
+                      >
+                        ACTIVE
+                      </span>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
           </div>
         </div>
 
         {/* Right: Rego Source Code Viewer */}
         <div className="double-bezel">
           <div className="double-bezel-inner">
-            {selectedPolicy ? (
-              <div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                  <div style={{ fontSize: '15px', fontWeight: 700, color: '#fff' }}>
-                    {selectedPolicy.name} <span style={{ color: 'var(--text-dim)', fontSize: '12px' }}>(v{selectedPolicy.version})</span>
+            {selectedPolicy ? (() => {
+              const selectedId = selectedPolicy.policy_id || selectedPolicy.id || ''
+              const version = selectedPolicy.version ?? selectedPolicy.latest_version ?? 1
+              return (
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                    <div style={{ fontSize: '15px', fontWeight: 700, color: '#fff' }}>
+                      {selectedPolicy.name}{' '}
+                      <span style={{ color: 'var(--primary)', fontSize: '12px', fontFamily: 'var(--font-mono)' }}>
+                        (v{version})
+                      </span>
+                    </div>
+                    <span style={{ fontSize: '11px', fontFamily: 'var(--font-mono)', color: 'var(--text-dim)' }}>
+                      ID: {selectedId ? selectedId.slice(0, 8) : 'active'}...
+                    </span>
                   </div>
-                  <span style={{ fontSize: '11px', fontFamily: 'var(--font-mono)', color: 'var(--text-dim)' }}>
-                    {selectedPolicy.id.slice(0, 8)}...
-                  </span>
+                  {selectedPolicy.description && (
+                    <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '14px', lineHeight: 1.5 }}>
+                      {selectedPolicy.description}
+                    </p>
+                  )}
+                  <div
+                    style={{
+                      background: 'var(--bg-canvas)',
+                      border: '1px solid var(--border-inner)',
+                      borderRadius: '8px',
+                      padding: '16px',
+                      fontFamily: 'var(--font-mono)',
+                      fontSize: '12px',
+                      lineHeight: 1.6,
+                      color: 'var(--primary)',
+                      overflowX: 'auto',
+                      maxHeight: '400px',
+                    }}
+                  >
+                    <pre>{selectedPolicy.rego_policy}</pre>
+                  </div>
                 </div>
-                {selectedPolicy.description && (
-                  <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '14px' }}>
-                    {selectedPolicy.description}
-                  </p>
-                )}
-                <div
-                  style={{
-                    background: 'var(--bg-canvas)',
-                    border: '1px solid var(--border-inner)',
-                    borderRadius: '8px',
-                    padding: '16px',
-                    fontFamily: 'var(--font-mono)',
-                    fontSize: '12px',
-                    lineHeight: 1.5,
-                    color: '#60a5fa',
-                    overflowX: 'auto',
-                    maxHeight: '400px',
-                  }}
-                >
-                  <pre>{selectedPolicy.rego_policy}</pre>
-                </div>
-              </div>
-            ) : (
-              <div style={{ padding: '40px 0', textAlign: 'center', color: 'var(--text-dim)' }}>
-                Select a policy on the left to view its Rego source.
+              )
+            })() : (
+              <div style={{ padding: '40px 0', textAlign: 'center', color: 'var(--text-dim)', fontSize: '13px' }}>
+                Select a policy on the left to inspect its active Rego definition.
               </div>
             )}
           </div>

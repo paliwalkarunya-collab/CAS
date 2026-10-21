@@ -13,7 +13,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.auth import require_roles
+from app.api.auth import get_current_user, require_roles
 from app.db.session import get_db
 from app.models.models import CASPolicy, CASPolicyVersion, CASUser
 from app.services.audit import append_audit_event
@@ -29,7 +29,7 @@ from app.schemas.policies import (  # noqa: E402
 
 @router.get("", response_model=list[PolicyResponse])
 async def list_policies(
-    _: object = Depends(require_roles("admin", "auditor")),
+    _: CASUser = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> list[PolicyResponse]:
     """List all registered access policies."""

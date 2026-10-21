@@ -11,8 +11,11 @@ from __future__ import annotations
 from functools import lru_cache
 from typing import Literal
 
+from dotenv import find_dotenv, load_dotenv
 from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+load_dotenv(find_dotenv())
 
 
 class Settings(BaseSettings):

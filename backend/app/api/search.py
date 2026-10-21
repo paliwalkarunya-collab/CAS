@@ -13,7 +13,7 @@ Security notes:
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -27,26 +27,17 @@ from app.services.crypto import compute_hmac_token
 router = APIRouter()
 settings = get_settings()
 
-SEARCHABLE_FIELDS = {"dataset_id", "class_label"}
+SEARCHABLE_FIELDS = {"dataset_id", "subject_id", "class_label"}
 
 # Schemas (centralised in app.schemas per PRD §10.3)
 from app.schemas.search import SearchRequest, SearchResult  # noqa: E402
 
 
-@router.post("", response_model=list[SearchResult])
-async def protected_search(
+async def _execute_protected_search(
     body: SearchRequest,
-    current_user: CASUser = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    current_user: CASUser,
+    db: AsyncSession,
 ) -> list[SearchResult]:
-    """
-    Search for envelopes using HMAC-protected equality tokens.
-
-    The search value is tokenised server-side -- it is never stored as plaintext
-    or used in a LIKE query. The HMAC token is looked up in cas_protected_indexes.
-
-    Known limitation: equality-pattern leakage (see PRD §19).
-    """
     if body.field_name not in SEARCHABLE_FIELDS:
         await append_audit_event(
             db=db,
@@ -95,8 +86,8 @@ async def protected_search(
     )
     envelopes = env_result.scalars().all()
 
-    # Filter: non-admins see only their own envelopes in search results
-    if current_user.role not in ("admin", "auditor"):
+    # Filter: uploaders see only their own envelopes in search results
+    if current_user.role == "uploader":
         envelopes = [e for e in envelopes if e.uploaded_by == current_user.id]
 
     await append_audit_event(
@@ -120,3 +111,42 @@ async def protected_search(
         )
         for e in envelopes
     ]
+
+
+@router.get("", response_model=list[SearchResult])
+async def protected_search_get(
+    field: str | None = Query(None, alias="field"),
+    field_name: str | None = Query(None, alias="field_name"),
+    value: str = Query(..., min_length=1, max_length=1024),
+    current_user: CASUser = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> list[SearchResult]:
+    """Search for envelopes via GET query parameters (as used by frontend / API integration)."""
+    resolved_field = field or field_name
+    if not resolved_field:
+        raise HTTPException(
+            status_code=400,
+            detail="Missing required query parameter: 'field' (or 'field_name')",
+        )
+    return await _execute_protected_search(
+        SearchRequest(field_name=resolved_field, value=value),
+        current_user=current_user,
+        db=db,
+    )
+
+
+@router.post("", response_model=list[SearchResult])
+async def protected_search(
+    body: SearchRequest,
+    current_user: CASUser = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> list[SearchResult]:
+    """
+    Search for envelopes using HMAC-protected equality tokens.
+
+    The search value is tokenised server-side -- it is never stored as plaintext
+    or used in a LIKE query. The HMAC token is looked up in cas_protected_indexes.
+
+    Known limitation: equality-pattern leakage (see PRD §19).
+    """
+    return await _execute_protected_search(body, current_user=current_user, db=db)

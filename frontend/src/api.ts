@@ -162,7 +162,7 @@ export async function requestAccess(payload: {
 
 export async function createMLJob(payload: {
   purpose: string
-  dataset_scope: string
+  dataset_scope: string[]
   requested_view: string
   duration_hours?: number
 }): Promise<MLJob> {

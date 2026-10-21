@@ -67,6 +67,13 @@ class EnvVarKeyService:
 
     def _load_from_env(self) -> None:
         """Load all CAS_KEK_V<n> variables from the environment."""
+        try:
+            from dotenv import find_dotenv, load_dotenv
+
+            load_dotenv(find_dotenv())
+        except ImportError:
+            pass
+
         current_str = os.environ.get("CAS_KEK_CURRENT_VERSION", "1")
         try:
             self._current_version = int(current_str)

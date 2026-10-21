@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import type { AnomalyAlert, UserRole } from '../types'
 import { listAnomalies, runAnomalyScan, reviewAnomaly } from '../api'
-import { AlertTriangle, CheckCircle2, Play, RefreshCw } from 'lucide-react'
+import { AlertTriangle, CheckCircle2, Play, RefreshCw, ShieldAlert, Check } from 'lucide-react'
 
 interface AnomaliesViewProps {
   currentRole: UserRole
@@ -61,13 +61,15 @@ export const AnomaliesView: React.FC<AnomaliesViewProps> = ({ currentRole }) => 
 
   if (!['admin', 'auditor'].includes(currentRole)) {
     return (
-      <div style={{ maxWidth: '800px', margin: '40px auto', padding: '32px 24px', textAlign: 'center' }}>
+      <div className="app-container fade-in" style={{ maxWidth: '640px', margin: '40px auto', textAlign: 'center' }}>
         <div className="double-bezel">
-          <div className="double-bezel-inner" style={{ padding: '40px 20px' }}>
-            <AlertTriangle size={36} color="#fbbf24" style={{ margin: '0 auto 16px' }} />
-            <h2 style={{ fontSize: '18px', fontWeight: 800, marginBottom: '8px' }}>Auditor Privileges Required</h2>
-            <p style={{ color: 'var(--text-muted)', fontSize: '14px' }}>
-              Only auditors and administrators can view anomaly alerts and execute IsolationForest scans. Switch your active role to AUDITOR.
+          <div className="double-bezel-inner" style={{ padding: '48px 24px' }}>
+            <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: 'var(--warning-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px', color: 'var(--warning)' }}>
+              <ShieldAlert size={24} />
+            </div>
+            <h2 style={{ fontSize: '18px', fontWeight: 800, color: '#fff', marginBottom: '8px' }}>Auditor Authorization Required</h2>
+            <p style={{ color: 'var(--text-muted)', fontSize: '13.5px', lineHeight: 1.6, maxWidth: '440px', margin: '0 auto' }}>
+              Only auditors and administrators can view anomaly alerts and execute IsolationForest scans. Switch your active role to <strong>AUDITOR</strong> in the navigation bar.
             </p>
           </div>
         </div>
@@ -76,23 +78,25 @@ export const AnomaliesView: React.FC<AnomaliesViewProps> = ({ currentRole }) => 
   }
 
   return (
-    <div style={{ maxWidth: '1100px', margin: '0 auto', padding: '32px 24px' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '24px' }}>
+    <div className="app-container fade-in">
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '28px', flexWrap: 'wrap', gap: '16px' }}>
         <div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
+            <span className="section-label">UNSUPERVISED BEHAVIORAL HEURISTICS</span>
+          </div>
           <h1 className="page-title">Audit Anomaly Alerts (IsolationForest)</h1>
           <p className="page-desc">
-            Unsupervised anomaly detection scans audit behavior for suspicious access volume, denied request bursts, and bulk exfiltration.
-            Alerts are <strong>advisory</strong> and never automatically revoke credentials.
+            Unsupervised machine learning scans audit behavior for suspicious access volume, denied request bursts, and bulk exfiltration patterns. Alerts are <strong>advisory</strong>.
           </p>
         </div>
 
         <div style={{ display: 'flex', gap: '10px' }}>
           <button className="btn-secondary" onClick={loadAlerts} disabled={loading}>
-            <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
+            <RefreshCw size={13} className={loading ? 'animate-spin' : ''} />
             <span>Refresh</span>
           </button>
           <button className="btn-primary" onClick={handleRunScan} disabled={scanning}>
-            <Play size={14} className={scanning ? 'animate-spin' : ''} />
+            <Play size={13} className={scanning ? 'animate-spin' : ''} />
             <span>{scanning ? 'Executing Scan...' : 'Run Detection Scan'}</span>
           </button>
         </div>
@@ -102,16 +106,20 @@ export const AnomaliesView: React.FC<AnomaliesViewProps> = ({ currentRole }) => 
         <div
           style={{
             padding: '12px 16px',
-            background: 'rgba(16, 185, 129, 0.15)',
-            border: '1px solid rgba(16, 185, 129, 0.3)',
+            background: 'var(--success-bg)',
+            border: '1px solid var(--success-border)',
             borderRadius: '8px',
-            color: '#34d399',
+            color: '#4ade80',
             fontSize: '13px',
             marginBottom: '20px',
             fontWeight: 600,
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
           }}
         >
-          {actionMsg}
+          <Check size={16} />
+          <span>{actionMsg}</span>
         </div>
       )}
 
@@ -119,26 +127,30 @@ export const AnomaliesView: React.FC<AnomaliesViewProps> = ({ currentRole }) => 
         <div
           style={{
             padding: '12px 16px',
-            background: 'rgba(244, 63, 94, 0.15)',
-            border: '1px solid rgba(244, 63, 94, 0.3)',
+            background: 'var(--danger-bg)',
+            border: '1px solid var(--danger-border)',
             borderRadius: '8px',
-            color: '#fb7185',
+            color: '#f87171',
             fontSize: '13px',
             marginBottom: '20px',
             fontWeight: 600,
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
           }}
         >
-          {error}
+          <AlertTriangle size={16} />
+          <span>{error}</span>
         </div>
       )}
 
       {/* Filter Tabs */}
-      <div style={{ display: 'flex', gap: '8px', marginBottom: '20px' }}>
+      <div style={{ display: 'flex', gap: '6px', marginBottom: '20px' }}>
         <button
           className={`tab-btn ${filterReviewed === 'unreviewed' ? 'active' : ''}`}
           onClick={() => setFilterReviewed('unreviewed')}
         >
-          Unreviewed
+          Unreviewed Alerts
         </button>
         <button
           className={`tab-btn ${filterReviewed === 'reviewed' ? 'active' : ''}`}
@@ -157,10 +169,25 @@ export const AnomaliesView: React.FC<AnomaliesViewProps> = ({ currentRole }) => 
       {/* Alerts Table */}
       <div className="double-bezel">
         <div className="double-bezel-inner">
-          {alerts.length === 0 ? (
-            <div style={{ padding: '32px 0', textAlign: 'center', color: 'var(--text-dim)' }}>
-              <CheckCircle2 size={32} color="#34d399" style={{ margin: '0 auto 10px', opacity: 0.7 }} />
-              <div>No anomaly alerts found for the selected filter.</div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+            <span style={{ fontSize: '14px', fontWeight: 700, color: '#fff' }}>Detected Anomaly Records</span>
+            <span style={{ fontSize: '11px', fontFamily: 'var(--font-mono)', color: 'var(--text-dim)' }}>
+              {alerts.length} ALERTS
+            </span>
+          </div>
+
+          {loading ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '12px 0' }}>
+              <div className="skeleton" style={{ height: '42px', width: '100%' }} />
+              <div className="skeleton" style={{ height: '42px', width: '100%' }} />
+            </div>
+          ) : alerts.length === 0 ? (
+            <div style={{ padding: '36px 0', textAlign: 'center', color: 'var(--text-dim)' }}>
+              <CheckCircle2 size={32} color="#4ade80" style={{ margin: '0 auto 10px', opacity: 0.8 }} />
+              <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-main)', marginBottom: '4px' }}>
+                No anomaly alerts found
+              </div>
+              <p style={{ fontSize: '12px' }}>All behavioral access metrics are conforming to standard baseline heuristics.</p>
             </div>
           ) : (
             <div className="table-wrap">
@@ -178,25 +205,26 @@ export const AnomaliesView: React.FC<AnomaliesViewProps> = ({ currentRole }) => 
                 <tbody>
                   {alerts.map((a) => (
                     <tr key={a.alert_id}>
-                      <td style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+                      <td style={{ fontSize: '12px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
                         {new Date(a.detected_at).toLocaleString()}
                       </td>
                       <td>
                         <span
                           style={{
-                            fontSize: '11px',
+                            fontSize: '10.5px',
                             fontWeight: 700,
                             fontFamily: 'var(--font-mono)',
                             padding: '3px 8px',
-                            borderRadius: '4px',
-                            background: 'rgba(245, 158, 11, 0.15)',
+                            borderRadius: '5px',
+                            background: 'var(--warning-bg)',
                             color: '#fbbf24',
+                            border: '1px solid var(--warning-border)',
                           }}
                         >
                           {a.alert_type}
                         </span>
                       </td>
-                      <td style={{ fontFamily: 'var(--font-mono)', fontSize: '13px', fontWeight: 700, color: '#f43f5e' }}>
+                      <td style={{ fontFamily: 'var(--font-mono)', fontSize: '13px', fontWeight: 700, color: '#f87171' }}>
                         {a.anomaly_score ? a.anomaly_score.toFixed(2) : '--'}
                       </td>
                       <td style={{ fontSize: '13px', color: '#fff', maxWidth: '380px' }}>
@@ -204,9 +232,9 @@ export const AnomaliesView: React.FC<AnomaliesViewProps> = ({ currentRole }) => 
                       </td>
                       <td>
                         {a.is_reviewed ? (
-                          <span style={{ fontSize: '11px', color: '#34d399', fontWeight: 700 }}>REVIEWED</span>
+                          <span style={{ fontSize: '10.5px', fontFamily: 'var(--font-mono)', color: '#4ade80', fontWeight: 700 }}>REVIEWED</span>
                         ) : (
-                          <span style={{ fontSize: '11px', color: '#fb7185', fontWeight: 700 }}>OPEN</span>
+                          <span style={{ fontSize: '10.5px', fontFamily: 'var(--font-mono)', color: '#f87171', fontWeight: 700 }}>OPEN</span>
                         )}
                       </td>
                       <td>

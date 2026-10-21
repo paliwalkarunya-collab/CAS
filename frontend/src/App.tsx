@@ -53,6 +53,60 @@ export const App: React.FC = () => {
     setCurrentTab('access')
   }
 
+interface ErrorBoundaryProps {
+  children: React.ReactNode
+  fallbackTab: () => void
+}
+
+interface ErrorBoundaryState {
+  hasError: boolean
+  error: Error | null
+}
+
+class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
+  constructor(props: ErrorBoundaryProps) {
+    super(props)
+    this.state = { hasError: false, error: null }
+  }
+
+  static getDerivedStateFromError(error: Error): ErrorBoundaryState {
+    return { hasError: true, error }
+  }
+
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+    console.error('ErrorBoundary caught error:', error, errorInfo)
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="app-container fade-in" style={{ padding: '60px 20px', textAlign: 'center' }}>
+          <div className="double-bezel" style={{ maxWidth: '600px', margin: '0 auto' }}>
+            <div className="double-bezel-inner" style={{ padding: '36px 24px' }}>
+              <h2 style={{ fontSize: '18px', fontWeight: 800, color: '#f87171', marginBottom: '10px' }}>
+                View Rendering Error
+              </h2>
+              <p style={{ color: 'var(--text-muted)', fontSize: '13px', marginBottom: '20px' }}>
+                {this.state.error?.message || 'An unexpected rendering error occurred in this view.'}
+              </p>
+              <button
+                className="btn-primary"
+                onClick={() => {
+                  this.setState({ hasError: false, error: null })
+                  this.props.fallbackTab()
+                }}
+              >
+                Return to Overview
+              </button>
+            </div>
+          </div>
+        </div>
+      )
+    }
+    return this.props.children
+  }
+}
+
   if (!currentUser) {
     return <LoginView onSuccess={handleLoginSuccess} />
   }
@@ -68,10 +122,11 @@ export const App: React.FC = () => {
         onLogout={handleLogout}
       />
 
-      <main style={{ flex: 1 }}>
-        {currentTab === 'dashboard' && (
-          <DashboardView currentRole={currentRole} onNavigate={setCurrentTab} />
-        )}
+      <main id="main-content" style={{ flex: 1 }}>
+        <ErrorBoundary key={currentTab} fallbackTab={() => setCurrentTab('dashboard')}>
+          {currentTab === 'dashboard' && (
+            <DashboardView currentRole={currentRole} onNavigate={setCurrentTab} />
+          )}
         {currentTab === 'upload' && <UploadView currentRole={currentRole} />}
         {currentTab === 'search' && (
           <SearchView onRequestAccess={handleRequestAccessFromSearch} />
@@ -96,19 +151,44 @@ export const App: React.FC = () => {
         {currentTab === 'policies' && <PoliciesView currentRole={currentRole} />}
         {currentTab === 'benchmarks' && <BenchmarksView />}
         {currentTab === 'health' && <HealthView />}
+        </ErrorBoundary>
       </main>
 
       <footer
         style={{
           borderTop: '1px solid var(--border-inner)',
-          padding: '16px 28px',
-          textAlign: 'center',
-          fontSize: '12px',
+          padding: '18px 28px',
+          display: 'flex',
+          flexWrap: 'wrap',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: '12px',
+          fontSize: '11.5px',
           color: 'var(--text-dim)',
           fontFamily: 'var(--font-mono)',
+          background: 'rgba(9, 13, 22, 0.5)',
         }}
       >
-        CAS-SE Reference Architecture • Zero Plaintext in RDBMS • Fail-Closed OPA Policy • Tamper-Evident HMAC Hash Chain
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <span
+            style={{
+              width: '7px',
+              height: '7px',
+              borderRadius: '50%',
+              background: 'var(--success)',
+              boxShadow: '0 0 8px var(--success-glow)',
+              display: 'inline-block',
+            }}
+          />
+          <span style={{ color: 'var(--text-muted)' }}>CAS-SE ENGINE ACTIVE</span>
+          <span>•</span>
+          <span>Zero Plaintext in RDBMS</span>
+          <span>•</span>
+          <span>Fail-Closed OPA</span>
+        </div>
+        <div>
+          <span>Tamper-Evident SHA-256 HMAC Chain</span>
+        </div>
       </footer>
     </div>
   )

@@ -375,7 +375,15 @@ async def test_protected_search_equality_token_lookup(access_test_context) -> No
     assert res_other.status_code == 200
     assert len(res_other.json()) == 0
 
-    # 3. Search invalid field -> returns 400
+    # 3. Search as trainer for chest-xray -> returns matching envelope (trainers can search across datasets)
+    trainer = users["trainer"]
+    app.dependency_overrides[get_current_user] = lambda: trainer
+    res_trainer = client.post("/search", json={"field_name": "dataset_id", "value": "chest-xray"})
+    assert res_trainer.status_code == 200
+    assert len(res_trainer.json()) == 1
+    assert res_trainer.json()[0]["envelope_id"] == str(env1_id)
+
+    # 4. Search invalid field -> returns 400
     res_invalid = client.post("/search", json={"field_name": "patient_ssn", "value": "secret"})
     assert res_invalid.status_code == 400
 

@@ -71,32 +71,34 @@ export const LoginView: React.FC<LoginViewProps> = ({ onSuccess }) => {
     >
       <div style={{ width: '100%', maxWidth: '440px' }}>
         {/* Brand Header */}
-        <div style={{ textAlign: 'center', marginBottom: '28px' }}>
+        <div style={{ textAlign: 'center', marginBottom: '28px' }} className="fade-in">
           <div
             style={{
-              width: '48px',
-              height: '48px',
+              width: '52px',
+              height: '52px',
               borderRadius: '12px',
-              background: 'linear-gradient(135deg, #3b82f6 0%, #10b981 100%)',
+              background: '#0f172a',
+              border: '1px solid var(--border-strong)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              margin: '0 auto 14px',
-              boxShadow: '0 0 24px rgba(59, 130, 246, 0.3)',
+              margin: '0 auto 16px',
+              boxShadow: '0 0 24px var(--primary-glow), inset 0 1px 0 rgba(255, 255, 255, 0.15)',
+              color: 'var(--primary)',
             }}
           >
-            <Shield size={26} color="#fff" />
+            <Shield size={26} color="currentColor" />
           </div>
-          <h1 style={{ fontSize: '24px', fontWeight: 800, color: '#fff', letterSpacing: '-0.02em' }}>
+          <h1 style={{ fontSize: '26px', fontWeight: 800, color: '#fff', letterSpacing: '-0.03em' }}>
             CAS-SE Architecture
           </h1>
           <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '4px' }}>
-            Reference Governance &amp; Access Dashboard
+            Cryptographic Access &amp; Reference Governance Dashboard
           </p>
         </div>
 
         {/* Double-Bezel Login Card */}
-        <div className="double-bezel">
+        <div className="double-bezel fade-in">
           <div className="double-bezel-inner">
             <div style={{ display: 'flex', gap: '8px', marginBottom: '20px' }}>
               <button

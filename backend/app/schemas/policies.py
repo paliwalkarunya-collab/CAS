@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import uuid
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, computed_field
 
 
 class PolicyVersionResponse(BaseModel):
@@ -22,6 +22,16 @@ class PolicyResponse(BaseModel):
     latest_version: int
     created_at: str
     updated_at: str
+
+    @computed_field
+    @property
+    def id(self) -> uuid.UUID:
+        return self.policy_id
+
+    @computed_field
+    @property
+    def version(self) -> int:
+        return self.latest_version
 
 
 class CreatePolicyRequest(BaseModel):

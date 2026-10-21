@@ -68,7 +68,7 @@ export const Navbar: React.FC<NavbarProps> = ({
     <header className="navbar">
       <div className="nav-brand">
         <div className="nav-logo">
-          <Shield size={18} color="#ffffff" />
+          <Shield size={18} color="currentColor" />
         </div>
         <div>
           <div className="nav-title">CAS-SE</div>
@@ -76,7 +76,7 @@ export const Navbar: React.FC<NavbarProps> = ({
         </div>
       </div>
 
-      <nav className="tabs-scroll">
+      <nav className="tabs-scroll" aria-label="Main Navigation">
         {tabs.map((tab) => (
           <button
             key={tab.id}
@@ -89,13 +89,23 @@ export const Navbar: React.FC<NavbarProps> = ({
         ))}
       </nav>
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
         {/* Active Role Switcher Pill */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <span style={{ fontSize: '11px', color: 'var(--text-dim)', fontFamily: 'var(--font-mono)' }}>ROLE:</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '7px' }}>
+          <span style={{ fontSize: '10px', color: 'var(--text-dim)', fontFamily: 'var(--font-mono)', fontWeight: 600 }}>ROLE:</span>
           <select
             className="select-field"
-            style={{ width: 'auto', padding: '6px 10px', fontSize: '12px', fontWeight: 600 }}
+            style={{
+              width: 'auto',
+              padding: '5px 9px',
+              fontSize: '11.5px',
+              fontWeight: 700,
+              fontFamily: 'var(--font-mono)',
+              background: 'var(--bg-card)',
+              borderColor: 'var(--border-outer)',
+              borderRadius: '7px',
+              cursor: 'pointer',
+            }}
             value={currentRole}
             onChange={(e) => onRoleChange(e.target.value as UserRole)}
           >
@@ -113,14 +123,15 @@ export const Navbar: React.FC<NavbarProps> = ({
             display: 'flex',
             alignItems: 'center',
             gap: '8px',
-            padding: '5px 12px',
-            background: 'rgba(255, 255, 255, 0.04)',
+            padding: '4px 10px',
+            background: 'var(--bg-card)',
             border: '1px solid var(--border-inner)',
-            borderRadius: '20px',
+            borderRadius: '8px',
+            boxShadow: 'var(--shadow-sm)',
           }}
         >
-          <UserCheck size={14} color="#60a5fa" />
-          <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-main)' }}>{username}</span>
+          <UserCheck size={14} color="var(--primary)" />
+          <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-main)', fontFamily: 'var(--font-mono)' }}>{username}</span>
           <span className={`badge-role ${currentRole}`}>{currentRole}</span>
         </div>
 
@@ -128,18 +139,13 @@ export const Navbar: React.FC<NavbarProps> = ({
         <button
           onClick={onLogout}
           title="Sign Out"
+          className="btn-secondary"
           style={{
-            background: 'transparent',
-            border: 'none',
-            color: 'var(--text-dim)',
-            cursor: 'pointer',
-            padding: '6px',
-            borderRadius: '6px',
-            display: 'flex',
-            alignItems: 'center',
+            padding: '6px 8px',
+            borderRadius: '7px',
           }}
         >
-          <LogOut size={16} />
+          <LogOut size={14} />
         </button>
       </div>
     </header>
