@@ -3,7 +3,6 @@
 # CAS-SE: Context-Aware, Searchable, Split-Key Data Envelope
 ### A Privacy-Preserving Data-Governance & Access-Control Architecture for Sensitive ML Datasets
 
-[![CI](https://github.com/cas-se/cas-se/actions/workflows/ci.yml/badge.svg)](https://github.com/cas-se/cas-se/actions/workflows/ci.yml)
 [![Python 3.13](https://img.shields.io/badge/python-3.13-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.110+-green.svg)](https://fastapi.tiangolo.com/)
