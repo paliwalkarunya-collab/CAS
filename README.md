@@ -1,8 +1,19 @@
+<div align="center">
+  
 # CAS-SE: Context-Aware, Searchable, Split-Key Data Envelope
+A Privacy-Preserving Data-Governance & Access-Control Architecture for Sensitive ML Datasets
 
 ![CAS-SE Banner](./cas-se-banner.png)
 [![Python 3.13](https://img.shields.io/badge/python-3.13-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.110+-green.svg)](https://fastapi.tiangolo.com/)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-blue.svg)](https://www.postgresql.org/)
+
+*Developed by the B.Tech AIML Project Team (Ramdeobaba University, Nagpur)*  
+**Guide:** Prof. Sonam Meshram  
+**Team:** Nikhil Singh (37) • Soham Kharabe (23) • Karunya Paliwal (14) • Gaurang Daware (17) • Prajwal Khandekar (26)
+
+</div>
 
 > **CAS-SE** is a privacy-preserving data-governance architecture designed to be integrated into an organization's existing database and storage infrastructure.
 >
