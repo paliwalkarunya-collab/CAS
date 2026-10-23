@@ -104,6 +104,7 @@ async def init_shamir_keys(
 
         # Retire previous versions and ensure version 1 record with cryptographic KCV
         from sqlalchemy import update
+
         await db.execute(update(CASKeyVersion).values(is_current=False))
         v_check = await db.execute(
             select(CASKeyVersion).where(CASKeyVersion.version_number == version)
@@ -134,7 +135,9 @@ async def init_shamir_keys(
         await db.commit()
     except Exception as exc:
         await db.rollback()
-        raise HTTPException(status_code=500, detail=f"Failed to initialize Shamir keys: {exc}") from exc
+        raise HTTPException(
+            status_code=500, detail=f"Failed to initialize Shamir keys: {exc}"
+        ) from exc
 
     return ShamirInitResponse(
         version=version,
@@ -174,7 +177,9 @@ async def unlock_shamir_keys(
     seen_x: set[str] = set()
     for s in body.shares:
         if not isinstance(s, str) or "-" not in s:
-            raise HTTPException(status_code=400, detail="Malformed split-key share format; expected 'x-hex_y'")
+            raise HTTPException(
+                status_code=400, detail="Malformed split-key share format; expected 'x-hex_y'"
+            )
         x_str, _ = s.split("-", 1)
         if x_str in seen_x:
             raise HTTPException(
@@ -198,7 +203,11 @@ async def unlock_shamir_keys(
     total_db_versions = res_count.scalar_one()
 
     if total_db_versions == 0:
-        target_ver = body.version if body.version is not None else getattr(key_service, "_current_version", 1)
+        target_ver = (
+            body.version
+            if body.version is not None
+            else getattr(key_service, "_current_version", 1)
+        )
         expected_kcv = None
     else:
         # 2. Determine target version to unlock
@@ -353,7 +362,9 @@ async def rotate_key(
                 if summary.successful_rewraps > 0
                 else "All DEKs rewrapped -- ciphertext blobs unchanged"
             )
-            audit_reason = f"Rotated KEK from version {summary.old_version} to {summary.new_version}"
+            audit_reason = (
+                f"Rotated KEK from version {summary.old_version} to {summary.new_version}"
+            )
 
         await append_audit_event(
             db=db,

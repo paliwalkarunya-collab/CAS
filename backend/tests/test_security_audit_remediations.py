@@ -41,7 +41,13 @@ def _make_test_png() -> bytes:
 async def remediations_test_context(
     tmp_path: pytest.TempPathFactory,
 ) -> AsyncGenerator[
-    tuple[TestClient, SplitKeyService, dict[str, CASUser], async_sessionmaker[AsyncSession], LocalFileAdapter],
+    tuple[
+        TestClient,
+        SplitKeyService,
+        dict[str, CASUser],
+        async_sessionmaker[AsyncSession],
+        LocalFileAdapter,
+    ],
 ]:
     test_db_url = "sqlite+aiosqlite:///:memory:"
     engine = create_async_engine(test_db_url, echo=False)
@@ -170,13 +176,19 @@ async def test_key_rotation_tracks_and_reports_partial_rewraps(remediations_test
     # 5. Verify database key versions and envelope states
     async with session_factory() as session:
         # env1 and env2 were successfully rewrapped to v2
-        env1 = (await session.execute(select(CASDataEnvelope).where(CASDataEnvelope.id == env1_id))).scalar_one()
-        env2 = (await session.execute(select(CASDataEnvelope).where(CASDataEnvelope.id == env2_id))).scalar_one()
+        env1 = (
+            await session.execute(select(CASDataEnvelope).where(CASDataEnvelope.id == env1_id))
+        ).scalar_one()
+        env2 = (
+            await session.execute(select(CASDataEnvelope).where(CASDataEnvelope.id == env2_id))
+        ).scalar_one()
         assert env1.kek_version == 2
         assert env2.kek_version == 2
 
         # env3 was untouched and remains on v1
-        env3 = (await session.execute(select(CASDataEnvelope).where(CASDataEnvelope.id == env3_id))).scalar_one()
+        env3 = (
+            await session.execute(select(CASDataEnvelope).where(CASDataEnvelope.id == env3_id))
+        ).scalar_one()
         assert env3.kek_version == 1
         assert env3.wrapped_dek == "not-valid-base64-dek-data!!!"
 
@@ -185,7 +197,9 @@ async def test_key_rotation_tracks_and_reports_partial_rewraps(remediations_test
             await session.execute(select(CASKeyVersion).where(CASKeyVersion.version_number == 1))
         ).scalar_one()
         assert v1_record.is_current is False
-        assert v1_record.retired_at is None, "Key version 1 must not be retired while env3 still uses it!"
+        assert v1_record.retired_at is None, (
+            "Key version 1 must not be retired while env3 still uses it!"
+        )
 
         # Version 2 is current
         v2_record = (
@@ -209,7 +223,9 @@ async def test_key_rotation_tracks_and_reports_partial_rewraps(remediations_test
     assert service.current_kek_version() == 2
 
     # Unlock historical v1
-    unlock_v1 = client.post("/keys/shamir/unlock", json={"shares": [v1_shares[0], v1_shares[1]], "version": 1})
+    unlock_v1 = client.post(
+        "/keys/shamir/unlock", json={"shares": [v1_shares[0], v1_shares[1]], "version": 1}
+    )
     assert unlock_v1.status_code == 200
 
     # Historical KEK is accessible for decryption
@@ -240,7 +256,9 @@ async def test_unlock_rejects_nonexistent_key_version(remediations_test_context)
     assert service.is_unlocked() is False
 
     # Attempt to unlock nonexistent version 999
-    res = client.post("/keys/shamir/unlock", json={"version": 999, "shares": ["1-abcdef", "2-123456"]})
+    res = client.post(
+        "/keys/shamir/unlock", json={"version": 999, "shares": ["1-abcdef", "2-123456"]}
+    )
     assert res.status_code == 404
     assert "does not exist in trusted key-version records" in res.json()["detail"]
 
@@ -250,7 +268,9 @@ async def test_unlock_rejects_nonexistent_key_version(remediations_test_context)
 
 
 @pytest.mark.asyncio
-async def test_unlock_fails_closed_when_kcv_is_missing_or_corrupted(remediations_test_context) -> None:
+async def test_unlock_fails_closed_when_kcv_is_missing_or_corrupted(
+    remediations_test_context,
+) -> None:
     """
     Requirement Finding 2 & 3:
     - Fail closed when a required KCV is missing from database records (HTTP 400).
@@ -278,7 +298,9 @@ async def test_unlock_fails_closed_when_kcv_is_missing_or_corrupted(remediations
         await session.commit()
 
     # Attempt unlock when KCV commitment is missing in DB -> MUST FAIL CLOSED (HTTP 400)
-    res_missing_kcv = client.post("/keys/shamir/unlock", json={"shares": [v1_shares[0], v1_shares[1]]})
+    res_missing_kcv = client.post(
+        "/keys/shamir/unlock", json={"shares": [v1_shares[0], v1_shares[1]]}
+    )
     assert res_missing_kcv.status_code == 400
     assert "missing a required Key Check Value (KCV) commitment" in res_missing_kcv.json()["detail"]
     assert service.is_unlocked() is False
@@ -299,7 +321,9 @@ async def test_unlock_fails_closed_when_kcv_is_missing_or_corrupted(remediations
     tampered_int = int(hex_y, 16) ^ 0xFFFF
     tampered_share = f"{idx}-{hex(tampered_int)[2:]}"
 
-    res_tampered = client.post("/keys/shamir/unlock", json={"shares": [v1_shares[0], tampered_share]})
+    res_tampered = client.post(
+        "/keys/shamir/unlock", json={"shares": [v1_shares[0], tampered_share]}
+    )
     assert res_tampered.status_code == 400
     assert "Key Check Value (KCV) verification" in res_tampered.json()["detail"]
     assert service.is_unlocked() is False
@@ -354,7 +378,9 @@ async def test_historical_unlock_never_downgrades_active_version(remediations_te
     # Because active v2 is not yet unlocked, service must remain locked for new uploads!
     status_after_v1 = client.get("/keys/status").json()
     assert status_after_v1["current_version"] == 2, "Active version must NOT downgrade to 1!"
-    assert status_after_v1["is_unlocked"] is False, "Service must remain locked until active v2 is unlocked!"
+    assert status_after_v1["is_unlocked"] is False, (
+        "Service must remain locked until active v2 is unlocked!"
+    )
     assert status_after_v1["recovered_versions"] == [1]
 
     # Verify new upload is BLOCKED (503) because active v2 is not yet unlocked
@@ -393,5 +419,7 @@ async def test_historical_unlock_never_downgrades_active_version(remediations_te
     env_id = uuid.UUID(upload_ok_res.json()["envelope_id"])
 
     async with session_factory() as session:
-        env = (await session.execute(select(CASDataEnvelope).where(CASDataEnvelope.id == env_id))).scalar_one()
+        env = (
+            await session.execute(select(CASDataEnvelope).where(CASDataEnvelope.id == env_id))
+        ).scalar_one()
         assert env.kek_version == 2, f"Expected envelope kek_version to be 2; got {env.kek_version}"

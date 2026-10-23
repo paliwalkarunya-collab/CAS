@@ -27,7 +27,7 @@ settings = get_settings()
 # Resolve relative SQLite paths against project repository root
 resolved_db_url = settings.database_url
 if resolved_db_url.startswith("sqlite+aiosqlite:///"):
-    sqlite_rel = resolved_db_url[len("sqlite+aiosqlite:///"):]
+    sqlite_rel = resolved_db_url[len("sqlite+aiosqlite:///") :]
     if not os.path.isabs(sqlite_rel) and not sqlite_rel.startswith(":memory:"):
         repo_root = Path(__file__).resolve().parent.parent.parent.parent
         resolved_db_path = (repo_root / sqlite_rel).resolve()

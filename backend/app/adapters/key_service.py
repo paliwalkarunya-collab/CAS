@@ -144,6 +144,7 @@ class EnvVarKeyService:
 
     def get_kcv(self, version: int) -> str | None:
         import hashlib
+
         kek = self._versions.get(version)
         if kek is not None:
             return hashlib.sha256(f"CAS-SE-KCV-V{version}:".encode() + kek).hexdigest()
@@ -325,7 +326,9 @@ class SplitKeyService:
 
         with self._lock:
             self._historic[target_version] = reconstructed
-            self._kcv[target_version] = target_kcv or self.compute_kcv(reconstructed, target_version)
+            self._kcv[target_version] = target_kcv or self.compute_kcv(
+                reconstructed, target_version
+            )
 
             # Active encryption key handling:
             # Unlocking a historical version (target_version < self._current_version) must NEVER
@@ -391,20 +394,18 @@ class SplitKeyService:
 
         for s in shares:
             if not isinstance(s, str) or "-" not in s:
-                raise ValueError("Malformed split-key share format (missing '-'); expected 'x-hex_y'")
+                raise ValueError(
+                    "Malformed split-key share format (missing '-'); expected 'x-hex_y'"
+                )
 
             x_str, y_str = s.split("-", 1)
             try:
                 x = int(x_str)
             except ValueError as e:
-                raise ValueError(
-                    f"Invalid share x-coordinate {x_str!r}: must be an integer"
-                ) from e
+                raise ValueError(f"Invalid share x-coordinate {x_str!r}: must be an integer") from e
 
             if x <= 0 or x >= p:
-                raise ValueError(
-                    f"Share x-coordinate out of valid range (1 <= x < p): {x}"
-                )
+                raise ValueError(f"Share x-coordinate out of valid range (1 <= x < p): {x}")
 
             if x in seen_x:
                 raise ValueError(
@@ -418,14 +419,14 @@ class SplitKeyService:
                 raise ValueError(f"Invalid share y-coordinate hex format at index {x}") from e
 
             if y < 0 or y >= p:
-                raise ValueError(f"Share y-coordinate out of field range at index {x} (must be < p)")
+                raise ValueError(
+                    f"Share y-coordinate out of field range at index {x} (must be < p)"
+                )
 
             points.append((x, y))
 
         if len(points) < self._threshold:
-            raise ValueError(
-                f"Need at least {self._threshold} distinct shares; got {len(points)}"
-            )
+            raise ValueError(f"Need at least {self._threshold} distinct shares; got {len(points)}")
 
         # Reconstruct using the first threshold points
         recovered = self._interpolate_secret(points[: self._threshold], p)
@@ -537,7 +538,9 @@ class SplitKeyService:
                 )
 
             new_kek = os.urandom(32)
-            shares = self.generate_shares(new_kek.hex(), total=self._total, threshold=self._threshold)
+            shares = self.generate_shares(
+                new_kek.hex(), total=self._total, threshold=self._threshold
+            )
 
             self._current_version = 1
             self._historic = {1: new_kek}
@@ -603,11 +606,7 @@ class SplitKeyService:
         # Ensure highest degree coefficient is strictly non-zero
         coeffs = [secret_int]
         for idx in range(threshold - 1):
-            c = (
-                secrets.randbelow(p - 1) + 1
-                if idx == threshold - 2
-                else secrets.randbelow(p)
-            )
+            c = secrets.randbelow(p - 1) + 1 if idx == threshold - 2 else secrets.randbelow(p)
             coeffs.append(c)
 
         shares: list[str] = []

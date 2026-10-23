@@ -139,24 +139,29 @@ def test_alembic_migration_003_upgrades_and_downgrades_safely(tmp_path) -> None:
         # 1. Upgrade to 002 (prior schema)
         command.upgrade(cfg, "002_protected_scopes")
         con = sqlite3.connect(db_path)
-        cols_002 = [r[1] for r in con.cursor().execute("PRAGMA table_info(cas_key_versions)").fetchall()]
+        cols_002 = [
+            r[1] for r in con.cursor().execute("PRAGMA table_info(cas_key_versions)").fetchall()
+        ]
         con.close()
         assert "key_check_value" not in cols_002
 
         # 2. Upgrade to 003 (head)
         command.upgrade(cfg, "head")
         con = sqlite3.connect(db_path)
-        cols_003 = [r[1] for r in con.cursor().execute("PRAGMA table_info(cas_key_versions)").fetchall()]
+        cols_003 = [
+            r[1] for r in con.cursor().execute("PRAGMA table_info(cas_key_versions)").fetchall()
+        ]
         con.close()
         assert "key_check_value" in cols_003
 
         # 3. Downgrade back to 002
         command.downgrade(cfg, "002_protected_scopes")
         con = sqlite3.connect(db_path)
-        cols_downgraded = [r[1] for r in con.cursor().execute("PRAGMA table_info(cas_key_versions)").fetchall()]
+        cols_downgraded = [
+            r[1] for r in con.cursor().execute("PRAGMA table_info(cas_key_versions)").fetchall()
+        ]
         con.close()
         assert "key_check_value" not in cols_downgraded
     finally:
         if orig_db_url is not None:
             os.environ["DATABASE_URL"] = orig_db_url
-

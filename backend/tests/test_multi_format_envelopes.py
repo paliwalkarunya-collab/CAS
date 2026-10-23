@@ -33,6 +33,7 @@ from app.api.envelopes import get_key_service, get_storage_adapter
 from app.db.session import CASBase, get_db
 from app.main import create_app
 from app.models.models import CASDataEnvelope, CASUser
+from app.policy.opa_client import PolicyDecision
 from app.services.envelope import (
     ingest_record,
     minimize_data,
@@ -69,7 +70,9 @@ def test_validate_upload_all_supported_formats() -> None:
     assert res_jpg.content_type == "image/jpeg"
 
     # 2. PDF Document
-    pdf_bytes = b"%PDF-1.4\n1 0 obj\n<< /Type /Catalog >>\nendobj\ntrailer\n<< /Root 1 0 R >>\n%%EOF"
+    pdf_bytes = (
+        b"%PDF-1.4\n1 0 obj\n<< /Type /Catalog >>\nendobj\ntrailer\n<< /Root 1 0 R >>\n%%EOF"
+    )
     res_pdf = validate_upload("paper.pdf", pdf_bytes)
     assert res_pdf.is_valid is True
     assert res_pdf.content_type == "application/pdf"
@@ -97,13 +100,18 @@ def test_validate_upload_all_supported_formats() -> None:
     docx_bytes = b"PK\x03\x04\x14\x00\x06\x00\x08\x00\x00\x00MockDOCXBinaryHeaderAndBodyContent"
     res_docx = validate_upload("specification.docx", docx_bytes)
     assert res_docx.is_valid is True
-    assert res_docx.content_type == "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    assert (
+        res_docx.content_type
+        == "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    )
 
     # 7. XLSX Binary Spreadsheet
     xlsx_bytes = b"PK\x03\x04\x14\x00\x06\x00\x08\x00\x00\x00MockXLSXBinaryHeaderAndBodyContent"
     res_xlsx = validate_upload("metrics.xlsx", xlsx_bytes)
     assert res_xlsx.is_valid is True
-    assert res_xlsx.content_type == "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    assert (
+        res_xlsx.content_type == "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
 
 
 def test_validate_upload_rejections() -> None:
@@ -223,7 +231,10 @@ def test_minimize_data_supports_non_image_documents() -> None:
 
 
 @pytest.fixture
-async def multi_format_test_env(tmp_path: pytest.TempPathFactory) -> AsyncGenerator[dict[str, Any]]:
+async def multi_format_test_env(
+    tmp_path: pytest.TempPathFactory,
+    monkeypatch: pytest.MonkeyPatch,
+) -> AsyncGenerator[dict[str, Any]]:
     test_db_url = "sqlite+aiosqlite:///:memory:"
     test_engine = create_async_engine(test_db_url, echo=False)
     test_session_factory = async_sessionmaker(
@@ -254,6 +265,23 @@ async def multi_format_test_env(tmp_path: pytest.TempPathFactory) -> AsyncGenera
         key_service._versions[1] = b"\x01" * 32
         key_service._current_version = 1
 
+    async def mock_opa(
+        identity: dict[str, Any],
+        resource: dict[str, Any],
+        context: dict[str, Any],
+    ) -> PolicyDecision:
+        view = context.get("requested_view", "raw_image")
+        return PolicyDecision(
+            decision=view,
+            reason="Access granted (Admin full access)",
+            policy_id="cas_se.access",
+            policy_version=1,
+            allowed_view=view,
+            decision_expiry=None,
+        )
+
+    monkeypatch.setattr("app.api.access.evaluate_access_policy", mock_opa)
+
     app = create_app()
 
     async def override_get_db() -> AsyncGenerator[AsyncSession]:
@@ -282,10 +310,22 @@ async def test_api_upload_and_access_all_formats(multi_format_test_env: dict[str
     test_files = [
         ("chart.png", create_test_image("PNG"), "image/png"),
         ("photo.jpg", create_test_image("JPEG"), "image/jpeg"),
-        ("report.pdf", b"%PDF-1.4\n1 0 obj << /Title (CAS-SE Test) >> endobj\n%%EOF", "application/pdf"),
+        (
+            "report.pdf",
+            b"%PDF-1.4\n1 0 obj << /Title (CAS-SE Test) >> endobj\n%%EOF",
+            "application/pdf",
+        ),
         ("notes.txt", b"Confidential researcher experiment observations.", "text/plain"),
-        ("sample.docx", b"PK\x03\x04\x14\x00\x00\x00\x08\x00MockBinaryDocxPayloadData", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"),
-        ("ledger.xlsx", b"PK\x03\x04\x14\x00\x00\x00\x08\x00MockBinaryXlsxPayloadData", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"),
+        (
+            "sample.docx",
+            b"PK\x03\x04\x14\x00\x00\x00\x08\x00MockBinaryDocxPayloadData",
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        ),
+        (
+            "ledger.xlsx",
+            b"PK\x03\x04\x14\x00\x00\x00\x08\x00MockBinaryXlsxPayloadData",
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        ),
         ("config.json", b'{"organization": "CAS-SE", "encrypted": true}', "application/json"),
     ]
 
@@ -318,7 +358,9 @@ async def test_api_upload_and_access_all_formats(multi_format_test_env: dict[str
                 "requested_view": "raw_image",
             },
         )
-        assert access_res.status_code == 200, f"Access request failed for {filename}: {access_res.text}"
+        assert access_res.status_code == 200, (
+            f"Access request failed for {filename}: {access_res.text}"
+        )
         access_data = access_res.json()
         assert access_data["decision"] in ("allow", "raw_image")
         assert access_data["content_type"] == expected_content_type

@@ -1,8 +1,19 @@
+<div align="center">
+  
 # CAS-SE: Context-Aware, Searchable, Split-Key Data Envelope
+A Privacy-Preserving Data-Governance & Access-Control Architecture for Sensitive ML Datasets
 
-[![CI](https://github.com/cas-se/cas-se/actions/workflows/ci.yml/badge.svg)](https://github.com/cas-se/cas-se/actions/workflows/ci.yml)
+![CAS-SE Banner](./cas-se-banner.png)
 [![Python 3.13](https://img.shields.io/badge/python-3.13-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.110+-green.svg)](https://fastapi.tiangolo.com/)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-blue.svg)](https://www.postgresql.org/)
+
+*Developed by the B.Tech AIML Project Team (Ramdeobaba University, Nagpur)*  
+**Guide:** Prof. Sonam Meshram  
+**Team:** Nikhil Singh (37) • Soham Kharabe (23) • Karunya Paliwal (14) • Gaurang Daware (17) • Prajwal Khandekar (26)
+
+</div>
 
 > **CAS-SE** is a privacy-preserving data-governance architecture designed to be integrated into an organization's existing database and storage infrastructure.
 >
@@ -14,7 +25,7 @@ application and identity stack; CAS-SE is not delivered as a web application.
 
 ---
 
-## Architecture & Integration Model
+## 🏛️ Architecture & Integration Model
 
 An adopting organization deploys CAS-SE as a middleware tier between their application/pipeline services and their existing database/storage tiers:
 
@@ -54,7 +65,7 @@ An adopting organization deploys CAS-SE as a middleware tier between their appli
 
 ---
 
-## Core Principles
+## 🛡️Core Principles
 
 1. **Envelope Encryption**: Payloads are never stored in plaintext in object storage and never stored as raw blobs in the database. Each record is encrypted with a fresh random 32-byte Data Encryption Key (DEK) via AES-256-GCM. The DEK is wrapped by a Key Encryption Key (KEK).
 2. **Pluggable Adapter Interfaces**: Standard Python Protocols allow organizations to plug in their existing infrastructure:
@@ -68,7 +79,7 @@ An adopting organization deploys CAS-SE as a middleware tier between their appli
 
 ---
 
-## Pluggable Adapters
+## ⚙️Pluggable Adapters
 
 ### Storage Adapter (`app.adapters.storage.StorageAdapter`)
 ```python
@@ -106,7 +117,7 @@ class IdentityAdapter(Protocol):
 
 ---
 
-## Directory Structure
+## 📂Directory Structure
 
 ```text
 CAS/
@@ -145,7 +156,7 @@ CAS/
 
 ---
 
-## Quick Start (Development)
+## ⚡Quick Start (Development)
 
 ### 1. Environment Configuration
 Copy the sample environment file:
@@ -294,7 +305,7 @@ When deployed via Docker Compose, `docker-compose.yml` automatically forwards `K
 
 ---
 
-## Testing & Quality Assurance
+## 🧪Testing & Quality Assurance
 
 Run backend pytest suite (115 tests covering crypto, OPA, ML jobs, audit chain, anomalies, benchmarks, and Shamir key management):
 ```bash
@@ -315,7 +326,12 @@ npm run test:e2e
 
 ---
 
-## Known Academic Limitations & Ethics
+
+
+## 🎥 **Watch the video demonstration:** 
+[Meet CAS-SE.mp4](./Meet%20CAS-SE.mp4)
+
+## 📜 Known Academic Limitations & Ethics
 
 - **Equality-pattern leakage**: HMAC tokens disclose whether indexed terms are identical.
 - **Academic Simulation**: Split-key Shamir recovery is a software prototype, not a hardware-backed HSM/KMS.

@@ -42,7 +42,9 @@ def _make_test_png() -> bytes:
 @pytest.fixture
 async def audit_test_context(
     tmp_path: pytest.TempPathFactory,
-) -> AsyncGenerator[tuple[TestClient, SplitKeyService, dict[str, CASUser], async_sessionmaker[AsyncSession]],]:
+) -> AsyncGenerator[
+    tuple[TestClient, SplitKeyService, dict[str, CASUser], async_sessionmaker[AsyncSession]],
+]:
     test_db_url = "sqlite+aiosqlite:///:memory:"
     engine = create_async_engine(test_db_url, echo=False)
     session_factory = async_sessionmaker(bind=engine, class_=AsyncSession, expire_on_commit=False)
@@ -122,9 +124,9 @@ def test_api_authorization_matrix_on_key_endpoints(audit_test_context) -> None:
         for non_admin_role in ["uploader", "trainer", "researcher", "auditor"]:
             app.dependency_overrides[get_current_user] = lambda u=users[non_admin_role]: u
             res_forbidden = client.request(method, path, json=json_body)
-            assert (
-                res_forbidden.status_code == 403
-            ), f"{method} {path} should be 403 for role {non_admin_role}"
+            assert res_forbidden.status_code == 403, (
+                f"{method} {path} should be 403 for role {non_admin_role}"
+            )
 
 
 # ---------------------------------------------------------------------------
@@ -275,10 +277,14 @@ async def test_shares_and_keys_never_leak_in_errors_or_audit(audit_test_context)
     # 4. Verify DB Audit log entries do not leak canary
     async with session_factory() as session:
         audits = (
-            await session.execute(
-                select(CASAccessAudit).where(CASAccessAudit.event_type == "key_rotate")
+            (
+                await session.execute(
+                    select(CASAccessAudit).where(CASAccessAudit.event_type == "key_rotate")
+                )
             )
-        ).scalars().all()
+            .scalars()
+            .all()
+        )
         for audit in audits:
             assert secret_canary not in (audit.reason or "")
             assert out_of_field_hex not in (audit.reason or "")
@@ -406,4 +412,3 @@ def test_historical_envelope_decryption_and_cross_version_resilience(tmp_path) -
     # Both versions are accessible
     assert split_service.get_kek_by_version(1) is not None
     assert split_service.get_kek_by_version(2) is not None
-

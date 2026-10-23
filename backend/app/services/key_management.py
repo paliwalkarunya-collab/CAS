@@ -89,9 +89,12 @@ async def rotate_kek(
     # Align key service with highest known DB version if adapter supports set_current_version
     max_ver_res = await db.execute(select(func.max(CASKeyVersion.version_number)))
     max_db_ver = max_ver_res.scalar_one_or_none()
-    if max_db_ver is not None and hasattr(key_service, "set_current_version"):
-        if max_db_ver > key_service.current_kek_version():
-            key_service.set_current_version(max_db_ver)
+    if (
+        max_db_ver is not None
+        and hasattr(key_service, "set_current_version")
+        and max_db_ver > key_service.current_kek_version()
+    ):
+        key_service.set_current_version(max_db_ver)
 
     # 2. Rotate and normalize the legacy reference adapter's return shape.
     rotation_result = key_service.rotate_kek()
@@ -159,9 +162,7 @@ async def rotate_kek(
 
     # 6. Retire old versions, BUT DO NOT retire any key version that is still
     # needed by an envelope that failed or was skipped during rewrap!
-    active_env_versions_res = await db.execute(
-        select(CASDataEnvelope.kek_version).distinct()
-    )
+    active_env_versions_res = await db.execute(select(CASDataEnvelope.kek_version).distinct())
     still_needed_versions = set(active_env_versions_res.scalars().all())
 
     old_versions_res = await db.execute(
