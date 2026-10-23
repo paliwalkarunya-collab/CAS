@@ -1,7 +1,29 @@
 import React, { useEffect, useState } from 'react'
-import type { KeyVersionItem, MLJob, UserRole } from '../types'
-import { approveMLJob, rejectMLJob, listMLJobs, listKeyVersions, rotateKey } from '../api'
-import { CheckCircle2, XCircle, RotateCcw, KeyRound, AlertTriangle, RefreshCw, ShieldAlert, Check } from 'lucide-react'
+import type { KeyStatusInfo, KeyVersionItem, MLJob, ShamirInitResult, UserRole } from '../types'
+import {
+  approveMLJob,
+  rejectMLJob,
+  listMLJobs,
+  listKeyVersions,
+  rotateKey,
+  getKeyStatus,
+  unlockShamir,
+  lockShamir,
+  initShamir,
+} from '../api'
+import {
+  CheckCircle2,
+  XCircle,
+  RotateCcw,
+  KeyRound,
+  AlertTriangle,
+  RefreshCw,
+  ShieldAlert,
+  Check,
+  Lock,
+  Unlock,
+  Key,
+} from 'lucide-react'
 
 interface AdminApprovalViewProps {
   currentRole: UserRole
@@ -10,10 +32,18 @@ interface AdminApprovalViewProps {
 export const AdminApprovalView: React.FC<AdminApprovalViewProps> = ({ currentRole }) => {
   const [pendingJobs, setPendingJobs] = useState<MLJob[]>([])
   const [keyVersions, setKeyVersions] = useState<KeyVersionItem[]>([])
+  const [keyStatus, setKeyStatus] = useState<KeyStatusInfo | null>(null)
   const [loading, setLoading] = useState(true)
   const [rotating, setRotating] = useState(false)
   const [actionSuccess, setActionSuccess] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+
+  // Shamir form states
+  const [shareInput1, setShareInput1] = useState('')
+  const [shareInput2, setShareInput2] = useState('')
+  const [unlocking, setUnlocking] = useState(false)
+  const [initResult, setInitResult] = useState<ShamirInitResult | null>(null)
+  const [provisionedShares, setProvisionedShares] = useState<string[] | null>(null)
 
   const loadData = async () => {
     setLoading(true)
@@ -23,8 +53,12 @@ export const AdminApprovalView: React.FC<AdminApprovalViewProps> = ({ currentRol
       setPendingJobs(allJobs.filter((j) => j.status === 'pending'))
 
       if (currentRole === 'admin') {
-        const keys = await listKeyVersions()
+        const [keys, status] = await Promise.all([
+          listKeyVersions(),
+          getKeyStatus().catch(() => null),
+        ])
         setKeyVersions(keys)
+        setKeyStatus(status)
       }
     } catch (err: any) {
       setError(err.message || 'Failed to load admin queue data')
@@ -67,16 +101,75 @@ export const AdminApprovalView: React.FC<AdminApprovalViewProps> = ({ currentRol
     }
     setRotating(true)
     setError(null)
+    setProvisionedShares(null)
     try {
       const res = await rotateKey()
+      const rewrapMsg = typeof res.envelopes_rewrapped === 'number'
+        ? `${res.envelopes_rewrapped} envelopes rewrapped in-place.`
+        : `${res.envelopes_rewrapped}.`
       setActionSuccess(
-        `KEK rotated from v${res.old_kek_version} to v${res.new_kek_version}. ${res.envelopes_rewrapped} envelopes rewrapped in-place.`
+        `KEK rotated from v${res.old_kek_version} to v${res.new_kek_version}. ${rewrapMsg}`
       )
+      if (res.provisioned_shares && res.provisioned_shares.length > 0) {
+        setProvisionedShares(res.provisioned_shares)
+      }
       await loadData()
     } catch (err: any) {
       setError(err.message || 'Key rotation failed')
     } finally {
       setRotating(false)
+    }
+  }
+
+  const handleShamirUnlock = async (e: React.FormEvent) => {
+    e.preventDefault()
+    const shares = [shareInput1.trim(), shareInput2.trim()].filter(Boolean)
+    if (shares.length < 2) {
+      setError('Please provide at least 2 distinct Shamir shares in "x-hex" format to reconstruct the KEK.')
+      return
+    }
+    setUnlocking(true)
+    setError(null)
+    try {
+      const res = await unlockShamir(shares)
+      setActionSuccess(res.message)
+      setShareInput1('')
+      setShareInput2('')
+      await loadData()
+    } catch (err: any) {
+      setError(err.message || 'Failed to unlock Shamir key')
+    } finally {
+      setUnlocking(false)
+    }
+  }
+
+  const handleShamirLock = async () => {
+    if (!confirm('Lock Shamir Key Service? This wipes the reconstructed KEK from memory until threshold shares are re-supplied.')) {
+      return
+    }
+    setError(null)
+    try {
+      const res = await lockShamir()
+      setActionSuccess(res.message)
+      await loadData()
+    } catch (err: any) {
+      setError(err.message || 'Failed to lock key service')
+    }
+  }
+
+  const handleShamirInit = async () => {
+    if (!confirm('Initialize a fresh 2-of-3 Shamir key split? This will generate a new KEK and return 3 shares to distribute to custodians.')) {
+      return
+    }
+    setError(null)
+    setInitResult(null)
+    try {
+      const res = await initShamir()
+      setInitResult(res)
+      setActionSuccess(`Fresh Shamir KEK v${res.version} initialized and unlocked in memory.`)
+      await loadData()
+    } catch (err: any) {
+      setError(err.message || 'Failed to initialize Shamir keys')
     }
   }
 
@@ -224,6 +317,192 @@ export const AdminApprovalView: React.FC<AdminApprovalViewProps> = ({ currentRol
               </table>
             </div>
           )}
+        </div>
+      </div>
+
+      {/* Shamir Key Provisioning / Initialization Alert */}
+      {(initResult || provisionedShares) && (
+        <div className="double-bezel" style={{ marginBottom: '24px' }}>
+          <div className="double-bezel-inner" style={{ borderLeft: '4px solid #f59e0b', background: 'rgba(245, 158, 11, 0.05)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px', color: '#f59e0b' }}>
+              <AlertTriangle size={20} />
+              <h3 style={{ fontSize: '15px', fontWeight: 700 }}>
+                {initResult ? `Fresh Shamir KEK v${initResult.version} Provisioned (2-of-3)` : 'New KEK Rotation Shares Provisioned'}
+              </h3>
+            </div>
+            <p style={{ fontSize: '13px', color: 'var(--text-main)', marginBottom: '16px', lineHeight: 1.6 }}>
+              {initResult?.warning || 'Distribute these threshold shares to separate custodians immediately. Shares are not stored on disk and will not be displayed again.'}
+            </p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '16px' }}>
+              {(initResult ? initResult.shares : provisionedShares || []).map((s, idx) => (
+                <div
+                  key={idx}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '8px 14px',
+                    background: 'var(--bg-canvas)',
+                    border: '1px solid var(--border-inner)',
+                    borderRadius: '6px',
+                    fontFamily: 'var(--font-mono)',
+                    fontSize: '12px',
+                  }}
+                >
+                  <span style={{ color: 'var(--primary)', fontWeight: 700 }}>SHARE #{idx + 1}:</span>
+                  <span style={{ color: '#fff', userSelect: 'all' }}>{s}</span>
+                </div>
+              ))}
+            </div>
+            <button
+              className="btn-secondary"
+              onClick={() => {
+                setInitResult(null)
+                setProvisionedShares(null)
+              }}
+            >
+              <span>Dismiss &amp; Clear Displayed Shares</span>
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Shamir Secret Sharing Custodian Controls */}
+      <div className="double-bezel" style={{ marginBottom: '24px' }}>
+        <div className="double-bezel-inner">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '12px' }}>
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                <Key size={17} color="var(--primary)" />
+                <h2 style={{ fontSize: '15px', fontWeight: 700, color: '#fff' }}>
+                  Shamir Secret Sharing (2-of-3) Custodian State
+                </h2>
+                <span
+                  style={{
+                    fontSize: '10.5px',
+                    fontFamily: 'var(--font-mono)',
+                    fontWeight: 700,
+                    padding: '2px 8px',
+                    borderRadius: '4px',
+                    background: keyStatus?.adapter === 'split' ? 'var(--primary-bg)' : 'rgba(255, 255, 255, 0.05)',
+                    color: keyStatus?.adapter === 'split' ? 'var(--primary)' : 'var(--text-dim)',
+                    border: '1px solid var(--border-inner)',
+                  }}
+                >
+                  ADAPTER: {keyStatus?.adapter?.toUpperCase() || 'UNKNOWN'}
+                </span>
+              </div>
+              <p style={{ fontSize: '12.5px', color: 'var(--text-muted)' }}>
+                {keyStatus?.adapter === 'split'
+                  ? 'Active KEK is split into 3 mathematical shares. Any 2 shares reconstruct the KEK in memory.'
+                  : 'Currently running under EnvVarKeyService. Set KEY_SERVICE_ADAPTER=split in .env to activate Shamir mode.'}
+              </p>
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              {keyStatus?.adapter === 'split' && (
+                <>
+                  <span
+                    style={{
+                      fontSize: '11px',
+                      fontFamily: 'var(--font-mono)',
+                      fontWeight: 700,
+                      padding: '4px 10px',
+                      borderRadius: '5px',
+                      background: keyStatus.is_unlocked ? 'var(--success-bg)' : 'var(--danger-bg)',
+                      color: keyStatus.is_unlocked ? '#4ade80' : '#f87171',
+                      border: `1px solid ${keyStatus.is_unlocked ? 'var(--success-border)' : 'var(--danger-border)'}`,
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                    }}
+                  >
+                    {keyStatus.is_unlocked ? <Unlock size={13} /> : <Lock size={13} />}
+                    <span>{keyStatus.is_unlocked ? 'UNLOCKED (IN MEMORY)' : 'LOCKED (FAIL-CLOSED)'}</span>
+                  </span>
+
+                  {keyStatus.is_unlocked ? (
+                    <button className="btn-secondary" onClick={handleShamirLock} title="Wipe KEK from memory">
+                      <Lock size={13} />
+                      <span>Lock Key</span>
+                    </button>
+                  ) : null}
+
+                  <button className="btn-secondary" onClick={handleShamirInit} title="Generate fresh 2-of-3 Shamir key set">
+                    <RefreshCw size={13} />
+                    <span>Bootstrap Fresh Split</span>
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+
+          {keyStatus?.adapter === 'split' && !keyStatus.is_unlocked && (
+            <div
+              style={{
+                marginTop: '16px',
+                padding: '18px',
+                background: 'var(--bg-canvas)',
+                border: '1px solid var(--danger-border)',
+                borderRadius: '8px',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#f87171', marginBottom: '12px', fontSize: '13px', fontWeight: 600 }}>
+                <ShieldAlert size={16} />
+                <span>KEK is locked. Ingestion and decryption operations are blocked until unlocked.</span>
+              </div>
+              <form onSubmit={handleShamirUnlock}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '12px', marginBottom: '14px' }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '11px', fontFamily: 'var(--font-mono)', color: 'var(--text-dim)', marginBottom: '4px' }}>
+                      CUSTODIAN SHARE A (e.g. 1-...)
+                    </label>
+                    <input
+                      type="text"
+                      className="input-field"
+                      placeholder="1-abcd..."
+                      value={shareInput1}
+                      onChange={(e) => setShareInput1(e.target.value)}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '11px', fontFamily: 'var(--font-mono)', color: 'var(--text-dim)', marginBottom: '4px' }}>
+                      CUSTODIAN SHARE B (e.g. 2-...)
+                    </label>
+                    <input
+                      type="text"
+                      className="input-field"
+                      placeholder="2-ef01..."
+                      value={shareInput2}
+                      onChange={(e) => setShareInput2(e.target.value)}
+                      required
+                    />
+                  </div>
+                </div>
+                <button type="submit" className="btn-primary" disabled={unlocking}>
+                  <Unlock size={14} />
+                  <span>{unlocking ? 'Reconstructing KEK...' : 'Reconstruct & Unlock KEK'}</span>
+                </button>
+              </form>
+            </div>
+          )}
+
+          <div
+            style={{
+              display: 'flex',
+              gap: '16px',
+              fontSize: '12px',
+              color: 'var(--text-muted)',
+              fontFamily: 'var(--font-mono)',
+              marginTop: '12px',
+              flexWrap: 'wrap',
+            }}
+          >
+            <div>THRESHOLD: <strong style={{ color: '#fff' }}>{keyStatus?.threshold || 2}-of-{keyStatus?.total_shares || 3}</strong></div>
+            <div>CURRENT VERSION: <strong style={{ color: 'var(--primary)' }}>v{keyStatus?.current_version || 1}</strong></div>
+            <div>STATUS MSG: <span style={{ color: 'var(--text-dim)' }}>{keyStatus?.message || 'Ready'}</span></div>
+          </div>
         </div>
       </div>
 

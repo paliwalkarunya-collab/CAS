@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import type { User, UserRole } from './types'
-import { authStorage } from './api'
+import { authStorage, getMe } from './api'
 import { Navbar, type TabId } from './components/Navbar'
 import { DashboardView } from './components/DashboardView'
 import { UploadView } from './components/UploadView'
@@ -23,11 +23,29 @@ export const App: React.FC = () => {
   const [prefillEnvelopeId, setPrefillEnvelopeId] = useState<string>('')
 
   useEffect(() => {
+    const handleAuthExpired = () => {
+      authStorage.clear()
+      setCurrentUser(null)
+    }
+    window.addEventListener('auth:expired', handleAuthExpired)
+
     const savedUser = authStorage.getUser()
     const token = authStorage.getToken()
     if (savedUser && token) {
       setCurrentUser(savedUser)
       setCurrentRole(savedUser.role)
+      // Validate session with backend; if invalid or expired, return cleanly to login
+      getMe().then((me) => {
+        setCurrentUser(me)
+        setCurrentRole(me.role)
+      }).catch(() => {
+        authStorage.clear()
+        setCurrentUser(null)
+      })
+    }
+
+    return () => {
+      window.removeEventListener('auth:expired', handleAuthExpired)
     }
   }, [])
 
@@ -127,7 +145,13 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
           {currentTab === 'dashboard' && (
             <DashboardView currentRole={currentRole} onNavigate={setCurrentTab} />
           )}
-        {currentTab === 'upload' && <UploadView currentRole={currentRole} />}
+        {currentTab === 'upload' && (
+          <UploadView
+            currentRole={currentRole}
+            onNavigateToAccess={handleRequestAccessFromSearch}
+            onNavigateTab={setCurrentTab}
+          />
+        )}
         {currentTab === 'search' && (
           <SearchView onRequestAccess={handleRequestAccessFromSearch} />
         )}

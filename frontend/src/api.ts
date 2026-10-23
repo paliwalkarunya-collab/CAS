@@ -11,10 +11,13 @@ import type {
   ChainVerifyResult,
   CheckpointResult,
   EnvelopeSummary,
+  KeyStatusInfo,
   KeyVersionItem,
   MLJob,
   PolicyItem,
   SearchResultItem,
+  ShamirInitResult,
+  ShamirUnlockResult,
   TelemetryMetrics,
   UploadResponse,
   User,
@@ -22,14 +25,21 @@ import type {
 } from './types'
 
 const TOKEN_KEY = 'cas_se_access_token'
+const REFRESH_TOKEN_KEY = 'cas_se_refresh_token'
 const USER_KEY = 'cas_se_current_user'
 
 export const authStorage = {
   getToken(): string | null {
     return localStorage.getItem(TOKEN_KEY)
   },
-  setToken(token: string) {
+  getRefreshToken(): string | null {
+    return localStorage.getItem(REFRESH_TOKEN_KEY)
+  },
+  setToken(token: string, refreshToken?: string) {
     localStorage.setItem(TOKEN_KEY, token)
+    if (refreshToken) {
+      localStorage.setItem(REFRESH_TOKEN_KEY, refreshToken)
+    }
   },
   getUser(): User | null {
     const raw = localStorage.getItem(USER_KEY)
@@ -40,6 +50,7 @@ export const authStorage = {
   },
   clear() {
     localStorage.removeItem(TOKEN_KEY)
+    localStorage.removeItem(REFRESH_TOKEN_KEY)
     localStorage.removeItem(USER_KEY)
   },
 }
@@ -57,6 +68,34 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   })
 
   if (!res.ok) {
+    if (res.status === 401 && !path.startsWith('/auth/')) {
+      const refreshToken = authStorage.getRefreshToken()
+      if (refreshToken) {
+        try {
+          const refreshRes = await fetch('/auth/refresh', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ refresh_token: refreshToken }),
+          })
+          if (refreshRes.ok) {
+            const tokenData = await refreshRes.json()
+            authStorage.setToken(tokenData.access_token, tokenData.refresh_token)
+            const retryHeaders = new Headers(options.headers || {})
+            retryHeaders.set('Authorization', `Bearer ${tokenData.access_token}`)
+            const retryRes = await fetch(path, { ...options, headers: retryHeaders })
+            if (retryRes.ok) {
+              return retryRes.json() as Promise<T>
+            }
+          }
+        } catch {
+          // Token refresh failed
+        }
+      }
+      authStorage.clear()
+      window.dispatchEvent(new CustomEvent('auth:expired'))
+      throw new Error('Your session has expired. Please sign in again.')
+    }
+
     let errorDetail = `Request failed: ${res.status} ${res.statusText}`
     try {
       const errorJson = await res.json()
@@ -83,7 +122,7 @@ export async function login(username: string, password: string): Promise<AuthTok
     body: JSON.stringify({ username: username.trim(), password }),
   })
 
-  authStorage.setToken(data.access_token)
+  authStorage.setToken(data.access_token, data.refresh_token)
   authStorage.setUser({
     id: 'active',
     username: data.username || username.trim(),
@@ -177,9 +216,25 @@ export async function listMLJobs(): Promise<MLJob[]> {
   return request<MLJob[]>('/ml-jobs')
 }
 
-export async function approveMLJob(jobId: string): Promise<{ status: string; job_id: string; manifest_token: string }> {
-  return request<{ status: string; job_id: string; manifest_token: string }>(`/ml-jobs/${jobId}/approve`, {
+export async function approveMLJob(jobId: string, reason = 'Approved by administrator'): Promise<{
+  job_id: string
+  requester_id: string
+  allowed_view: string
+  envelope_ids: string[]
+  expires_at: string
+  policy_version: number | null
+}> {
+  return request<{
+    job_id: string
+    requester_id: string
+    allowed_view: string
+    envelope_ids: string[]
+    expires_at: string
+    policy_version: number | null
+  }>(`/ml-jobs/${jobId}/approve`, {
     method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ reason }),
   })
 }
 
@@ -271,17 +326,43 @@ export async function listKeyVersions(): Promise<KeyVersionItem[]> {
 }
 
 export async function rotateKey(): Promise<{
-  status: string
+  status?: string
   old_kek_version: number
   new_kek_version: number
-  envelopes_rewrapped: number
+  envelopes_rewrapped: string | number
+  provisioned_shares?: string[] | null
 }> {
   return request<{
-    status: string
+    status?: string
     old_kek_version: number
     new_kek_version: number
-    envelopes_rewrapped: number
+    envelopes_rewrapped: string | number
+    provisioned_shares?: string[] | null
   }>('/keys/rotate', {
+    method: 'POST',
+  })
+}
+
+export async function getKeyStatus(): Promise<KeyStatusInfo> {
+  return request<KeyStatusInfo>('/keys/status')
+}
+
+export async function unlockShamir(shares: string[], version?: number): Promise<ShamirUnlockResult> {
+  return request<ShamirUnlockResult>('/keys/shamir/unlock', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ shares, version }),
+  })
+}
+
+export async function initShamir(): Promise<ShamirInitResult> {
+  return request<ShamirInitResult>('/keys/shamir/init', {
+    method: 'POST',
+  })
+}
+
+export async function lockShamir(): Promise<{ locked: boolean; message: string }> {
+  return request<{ locked: boolean; message: string }>('/keys/shamir/lock', {
     method: 'POST',
   })
 }

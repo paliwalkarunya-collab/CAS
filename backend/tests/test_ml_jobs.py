@@ -476,6 +476,23 @@ async def test_ml_job_approval_generates_signed_manifest(ml_job_test_context) ->
         assert audit_rec.actor_id == admin.id
         assert audit_rec.decision == "allow"
 
+    # Trainer creates second job and admin approves with empty body (no json payload)
+    app.dependency_overrides[get_current_user] = lambda: trainer
+    res2 = client.post(
+        "/ml-jobs",
+        json={
+            "purpose": "Train second model on fashion_mnist",
+            "dataset_scope": ["fashion_mnist"],
+            "requested_view": "feature_only",
+            "duration_hours": 4,
+        },
+    )
+    job2_id = res2.json()["job_id"]
+    app.dependency_overrides[get_current_user] = lambda: admin
+    empty_body_res = client.post(f"/ml-jobs/{job2_id}/approve")
+    assert empty_body_res.status_code == 200
+    assert empty_body_res.json()["job_id"] == job2_id
+
 
 @pytest.mark.asyncio
 async def test_ml_job_rejection_and_cancellation(ml_job_test_context) -> None:

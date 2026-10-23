@@ -1,13 +1,15 @@
 import React, { useState } from 'react'
 import type { UploadResponse, UserRole } from '../types'
 import { uploadEnvelope } from '../api'
-import { UploadCloud, CheckCircle2, AlertCircle, Lock, ShieldAlert } from 'lucide-react'
+import { UploadCloud, CheckCircle2, AlertCircle, Lock, ShieldAlert, Eye } from 'lucide-react'
 
 interface UploadViewProps {
   currentRole: UserRole
+  onNavigateToAccess?: (envelopeId: string) => void
+  onNavigateTab?: (tab: any) => void
 }
 
-export const UploadView: React.FC<UploadViewProps> = ({ currentRole }) => {
+export const UploadView: React.FC<UploadViewProps> = ({ currentRole, onNavigateToAccess, onNavigateTab }) => {
   const [file, setFile] = useState<File | null>(null)
   const [datasetId, setDatasetId] = useState('fashion_mnist')
   const [subjectId, setSubjectId] = useState('item-042')
@@ -26,7 +28,7 @@ export const UploadView: React.FC<UploadViewProps> = ({ currentRole }) => {
   const handleUpload = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!file) {
-      setError('Please select an image file to ingest.')
+      setError('Please select a file to ingest.')
       return
     }
 
@@ -52,7 +54,7 @@ export const UploadView: React.FC<UploadViewProps> = ({ currentRole }) => {
         </div>
         <h1 className="page-title">Ingest Encrypted Data Envelope</h1>
         <p className="page-desc">
-          Payloadds are encrypted with a fresh random 32-byte DEK (AES-256-GCM) before reaching object storage. Plaintext payloads are <strong>never stored in the database</strong>.
+          Payloads are encrypted with a fresh random 32-byte DEK (AES-256-GCM) before reaching object storage. Plaintext payloads are <strong>never stored in the database</strong>.
         </p>
       </div>
 
@@ -97,20 +99,20 @@ export const UploadView: React.FC<UploadViewProps> = ({ currentRole }) => {
               <input
                 id="file-upload-input"
                 type="file"
-                accept="image/png,image/jpeg,image/tiff"
+                accept=".png,.jpg,.jpeg,.webp,.gif,.bmp,.tiff,.tif,.pdf,.txt,.csv,.json,.docx,.xlsx,.doc,.xls,.pptx,.xml,image/*,application/pdf,text/plain,text/csv,application/json,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                 style={{ display: 'none' }}
                 onChange={handleFileChange}
               />
               <UploadCloud size={38} color="var(--primary)" style={{ margin: '0 auto 12px' }} />
               <div style={{ fontSize: '14.5px', fontWeight: 600, color: '#fff', marginBottom: '4px' }}>
-                {file ? file.name : 'Click or drop image file to encrypt & ingest'}
+                {file ? file.name : 'Click or drop file to encrypt & ingest'}
               </div>
               <div style={{ fontSize: '12px', color: 'var(--text-dim)' }}>
-                Supported formats: PNG, JPEG, TIFF (Max size: 10 MB)
+                Supported formats: PNG, JPG, WebP, PDF, TXT, CSV, JSON, DOCX, XLSX (Max size: 10 MB)
               </div>
               {file && (
                 <div style={{ marginTop: '10px', fontSize: '12px', color: 'var(--primary)', fontFamily: 'var(--font-mono)' }}>
-                  Selected file: {(file.size / 1024).toFixed(1)} KB
+                  Selected file: {file.name} ({(file.size / 1024).toFixed(1)} KB{file.type ? ` • ${file.type}` : ''})
                 </div>
               )}
             </div>
@@ -167,6 +169,7 @@ export const UploadView: React.FC<UploadViewProps> = ({ currentRole }) => {
                 style={{
                   display: 'flex',
                   alignItems: 'center',
+                  justifyContent: 'space-between',
                   gap: '8px',
                   padding: '12px 16px',
                   background: 'var(--danger-bg)',
@@ -177,8 +180,34 @@ export const UploadView: React.FC<UploadViewProps> = ({ currentRole }) => {
                   marginBottom: '20px',
                 }}
               >
-                <AlertCircle size={16} />
-                <span>{error}</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <AlertCircle size={16} />
+                  <span>{error}</span>
+                </div>
+                {(error.toLowerCase().includes('token') || error.toLowerCase().includes('expired') || error.toLowerCase().includes('session')) && (
+                  <button
+                    type="button"
+                    className="btn-secondary"
+                    style={{ padding: '4px 10px', fontSize: '11px', whiteSpace: 'nowrap' }}
+                    onClick={() => {
+                      localStorage.removeItem('cas_se_access_token')
+                      localStorage.removeItem('cas_se_current_user')
+                      window.dispatchEvent(new CustomEvent('auth:expired'))
+                    }}
+                  >
+                    Sign In Again
+                  </button>
+                )}
+                {(error.toLowerCase().includes('locked') || error.toLowerCase().includes('shamir')) && (
+                  <button
+                    type="button"
+                    className="btn-secondary"
+                    style={{ padding: '4px 10px', fontSize: '11px', whiteSpace: 'nowrap' }}
+                    onClick={() => (onNavigateTab ? onNavigateTab('admin_queue') : undefined)}
+                  >
+                    Go to Key Controls
+                  </button>
+                )}
               </div>
             )}
 
@@ -231,6 +260,23 @@ export const UploadView: React.FC<UploadViewProps> = ({ currentRole }) => {
                   </span>
                 </div>
               </div>
+
+              {onNavigateToAccess && (
+                <div style={{ marginTop: '16px', paddingTop: '16px', borderTop: '1px solid var(--border-inner)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px' }}>
+                  <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+                    Payload is encrypted (Zero Plaintext). Submit an Access Request to decrypt and render pixels:
+                  </div>
+                  <button
+                    type="button"
+                    className="btn-primary"
+                    onClick={() => onNavigateToAccess(result.envelope_id)}
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}
+                  >
+                    <Eye size={15} />
+                    <span>View / Decrypt Visual Image</span>
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </div>

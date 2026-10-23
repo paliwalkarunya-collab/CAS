@@ -137,7 +137,7 @@ async def get_ml_job(
 @router.post("/{job_id}/approve", response_model=JobManifest)
 async def approve_ml_job(
     job_id: uuid.UUID,
-    body: ApproveJobRequest,
+    body: ApproveJobRequest = ApproveJobRequest(),
     current_user: CASUser = Depends(require_roles("admin")),
     db: AsyncSession = Depends(get_db),
 ) -> JobManifest:

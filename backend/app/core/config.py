@@ -9,7 +9,7 @@ Use `.env.example` as a reference; copy to `.env` for local development.
 from __future__ import annotations
 
 from functools import lru_cache
-from typing import Literal
+from typing import Any, Literal
 
 from dotenv import find_dotenv, load_dotenv
 from pydantic import field_validator, model_validator
@@ -102,9 +102,57 @@ class Settings(BaseSettings):
     # -----------------------------------------------------------------------
     cors_origins: list[str] = ["http://localhost:3000", "http://localhost:5173"]
     max_upload_bytes: int = 10 * 1024 * 1024  # 10 MB
-    allowed_extensions: list[str] = [".jpg", ".jpeg", ".png", ".gif", ".bmp", ".tiff", ".webp"]
+    allowed_extensions: list[str] = [
+        ".jpg",
+        ".jpeg",
+        ".png",
+        ".gif",
+        ".bmp",
+        ".tiff",
+        ".tif",
+        ".webp",
+        ".pdf",
+        ".txt",
+        ".csv",
+        ".json",
+        ".xml",
+        ".docx",
+        ".xlsx",
+        ".doc",
+        ".xls",
+        ".pptx",
+    ]
     rate_limit_login: str = "10/minute"
     rate_limit_access_request: str = "30/minute"
+
+    @field_validator("key_service_adapter")
+    @classmethod
+    def validate_key_service_adapter(cls, v: str) -> str:
+        allowed = {"env", "split", "custom"}
+        if v not in allowed:
+            raise ValueError(f"Unknown key_service_adapter {v!r}; must be one of {allowed}")
+        return v
+
+    @field_validator("split_key_shares", mode="before")
+    @classmethod
+    def parse_split_key_shares(cls, v: Any) -> list[str]:
+        if isinstance(v, str):
+            v = v.strip()
+            if not v:
+                return []
+            if v.startswith("[") and v.endswith("]"):
+                try:
+                    import json
+
+                    parsed = json.loads(v)
+                    if isinstance(parsed, list):
+                        return [str(x).strip() for x in parsed if str(x).strip()]
+                except Exception:
+                    pass
+            return [x.strip() for x in v.split(",") if x.strip()]
+        if isinstance(v, (list, tuple)):
+            return [str(x).strip() for x in v if str(x).strip()]
+        return []
 
     @field_validator(
         "jwt_secret_key",

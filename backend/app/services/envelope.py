@@ -18,6 +18,7 @@ Security invariants:
 from __future__ import annotations
 
 import io
+import mimetypes
 import uuid
 from dataclasses import dataclass
 from pathlib import Path
@@ -40,12 +41,36 @@ from app.services.crypto import (
 
 settings = get_settings()
 
-
 # ---------------------------------------------------------------------------
 # Upload validation
 # ---------------------------------------------------------------------------
 
-ALLOWED_EXTENSIONS = {".jpg", ".jpeg", ".png", ".gif", ".bmp", ".tiff", ".webp"}
+IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".gif", ".bmp", ".tiff", ".tif", ".webp"}
+DOCUMENT_EXTENSIONS = {".pdf", ".docx", ".doc", ".xlsx", ".xls", ".pptx"}
+DATA_TEXT_EXTENSIONS = {".txt", ".csv", ".json", ".xml"}
+ALLOWED_EXTENSIONS = IMAGE_EXTENSIONS | DOCUMENT_EXTENSIONS | DATA_TEXT_EXTENSIONS
+
+MIME_TYPE_MAP: dict[str, str] = {
+    ".pdf": "application/pdf",
+    ".txt": "text/plain",
+    ".csv": "text/csv",
+    ".json": "application/json",
+    ".xml": "application/xml",
+    ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    ".doc": "application/msword",
+    ".xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    ".xls": "application/vnd.ms-excel",
+    ".pptx": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+    ".png": "image/png",
+    ".jpg": "image/jpeg",
+    ".jpeg": "image/jpeg",
+    ".webp": "image/webp",
+    ".gif": "image/gif",
+    ".bmp": "image/bmp",
+    ".tiff": "image/tiff",
+    ".tif": "image/tiff",
+}
+
 MAX_BYTES = settings.max_upload_bytes  # 10 MB default
 
 
@@ -65,8 +90,10 @@ def validate_upload(
 
     Checks:
       1. File size ≤ max_bytes
-      2. Extension is in the allowlist
-      3. Data is decodable as an image (PIL verification)
+      2. File is not empty
+      3. Extension is in the allowlist
+      4. For images: Data is decodable as an image (PIL verification)
+      5. For documents/data: Accurate MIME type resolution and format validity
 
     :returns: UploadValidationResult with is_valid=True on success.
     """
@@ -78,6 +105,14 @@ def validate_upload(
             error=f"File size {len(data)} bytes exceeds limit of {max_bytes} bytes",
         )
 
+    if len(data) == 0:
+        return UploadValidationResult(
+            is_valid=False,
+            content_type="",
+            file_size_bytes=0,
+            error="Uploaded file cannot be empty",
+        )
+
     ext = Path(filename).suffix.lower()
     if ext not in ALLOWED_EXTENSIONS:
         return UploadValidationResult(
@@ -87,18 +122,26 @@ def validate_upload(
             error=f"Extension {ext!r} is not allowed. Permitted: {sorted(ALLOWED_EXTENSIONS)}",
         )
 
-    # Attempt image decode (detects corrupt or non-image files)
-    try:
-        img = Image.open(io.BytesIO(data))
-        img.verify()
-        content_type = Image.MIME.get(img.format or "", "application/octet-stream")
-    except (UnidentifiedImageError, Exception) as e:
-        return UploadValidationResult(
-            is_valid=False,
-            content_type="",
-            file_size_bytes=len(data),
-            error=f"File is not a valid image: {e}",
-        )
+    # Validate image files with PIL
+    if ext in IMAGE_EXTENSIONS:
+        try:
+            img = Image.open(io.BytesIO(data))
+            img.verify()
+            content_type = Image.MIME.get(
+                img.format or "",
+                MIME_TYPE_MAP.get(ext, "image/" + ext.lstrip(".")),
+            )
+        except (UnidentifiedImageError, Exception) as e:
+            return UploadValidationResult(
+                is_valid=False,
+                content_type="",
+                file_size_bytes=len(data),
+                error=f"File is not a valid image: {e}",
+            )
+    else:
+        # Document, spreadsheet, and text/data formats
+        guessed, _ = mimetypes.guess_type(filename)
+        content_type = MIME_TYPE_MAP.get(ext) or guessed or "application/octet-stream"
 
     return UploadValidationResult(
         is_valid=True,
@@ -255,14 +298,17 @@ def minimize_data(
 
 
 def _blur_image(image_bytes: bytes, blur_radius: int = 20) -> bytes:
-    """Apply heavy Gaussian blur to produce a masked/de-identified image."""
+    """Apply heavy Gaussian blur to produce a masked/de-identified image, or redact non-image content."""
     from PIL import ImageFilter
 
-    img = Image.open(io.BytesIO(image_bytes))
-    blurred = img.filter(ImageFilter.GaussianBlur(radius=blur_radius))
-    out = io.BytesIO()
-    blurred.save(out, format=img.format or "PNG")
-    return out.getvalue()
+    try:
+        img = Image.open(io.BytesIO(image_bytes))
+        blurred = img.filter(ImageFilter.GaussianBlur(radius=blur_radius))
+        out = io.BytesIO()
+        blurred.save(out, format=img.format or "PNG")
+        return out.getvalue()
+    except Exception:
+        return b"[REDACTED / MASKED PAYLOAD - NON-IMAGE DOCUMENT]"
 
 
 # ---------------------------------------------------------------------------

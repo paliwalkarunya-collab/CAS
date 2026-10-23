@@ -53,6 +53,7 @@ export interface AccessDecisionResponse {
   permitted_view?: 'metadata_only' | 'masked_image' | 'feature_only' | 'raw_image' | null
   envelope_id?: string
   data_b64?: string | null
+  content_type?: string | null
   policy_id?: string | null
   policy_version?: number | null
   data?: {
@@ -128,6 +129,31 @@ export interface KeyVersionItem {
   version_number: number
   created_at: string
   is_current: boolean
+}
+
+export interface KeyStatusInfo {
+  adapter: string
+  is_unlocked: boolean
+  threshold: number
+  total_shares: number
+  current_version: number
+  shares_provided_count: number
+  recovered_versions: number[]
+  message: string
+}
+
+export interface ShamirUnlockResult {
+  unlocked: boolean
+  version: number
+  message: string
+}
+
+export interface ShamirInitResult {
+  version: number
+  threshold: number
+  total_shares: number
+  shares: string[]
+  warning: string
 }
 
 export interface TelemetryMetrics {

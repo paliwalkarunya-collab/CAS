@@ -19,5 +19,6 @@ class AccessResponse(BaseModel):
     reason: str
     allowed_view: str | None
     data_b64: str | None = None  # base64-encoded minimized data (if allowed)
+    content_type: str | None = None
     policy_id: str | None = None
     policy_version: int | None = None

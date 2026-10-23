@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import type { AccessDecisionResponse, UserRole, MLJob } from '../types'
 import { requestAccess, listMLJobs } from '../api'
-import { KeyRound, CheckCircle2, XCircle, Eye, Binary, Info, Sparkles } from 'lucide-react'
+import { KeyRound, CheckCircle2, XCircle, Eye, Binary, Info, Sparkles, Download, FileText } from 'lucide-react'
 
 interface AccessRequestViewProps {
   currentRole: UserRole
@@ -162,6 +162,7 @@ export const AccessRequestView: React.FC<AccessRequestViewProps> = ({ currentRol
                 TARGET ENVELOPE ID (UUID)
               </label>
               <input
+                id="envelope-id-input"
                 type="text"
                 className="input-field"
                 value={envelopeId}
@@ -322,24 +323,89 @@ export const AccessRequestView: React.FC<AccessRequestViewProps> = ({ currentRol
                     RELEASED DATA REPRESENTATION:
                   </div>
 
-                  {/* Render Visual Image */}
-                  {hasImageData && (
-                    <div style={{ background: 'var(--bg-canvas)', border: '1px solid var(--border-inner)', borderRadius: '10px', padding: '18px', textAlign: 'center', marginBottom: '16px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginBottom: '14px', color: activeView === 'raw_image' ? 'var(--success)' : 'var(--warning)', fontSize: '13px', fontWeight: 600 }}>
-                        <Eye size={16} />
-                        <span>
-                          {activeView === 'raw_image'
-                            ? 'Decrypted Raw Image (Full Precision Pixels)'
-                            : 'Masked / Obfuscated Image (Low-Resolution / Blurred Pixels)'}
-                        </span>
+                  {/* Render Visual Image or Document */}
+                  {hasImageData && imageB64 && (() => {
+                    const dataStr = imageB64
+                    const contentType = decision.content_type || ''
+                    const isImage = contentType.startsWith('image/') || (!contentType && (dataStr.startsWith('iVBORw0KGgo') || dataStr.startsWith('/9j/')))
+                    const isText = contentType.includes('text') || contentType.includes('json') || contentType.includes('csv') || contentType.includes('xml')
+
+                    let textContent = ''
+                    if (isText) {
+                      try {
+                        textContent = atob(dataStr)
+                      } catch {
+                        textContent = ''
+                      }
+                    }
+
+                    const handleDownload = () => {
+                      try {
+                        const binaryStr = atob(dataStr)
+                        const bytes = new Uint8Array(binaryStr.length)
+                        for (let i = 0; i < binaryStr.length; i++) {
+                          bytes[i] = binaryStr.charCodeAt(i)
+                        }
+                        const blob = new Blob([bytes], { type: contentType || 'application/octet-stream' })
+                        const url = URL.createObjectURL(blob)
+                        const a = document.createElement('a')
+                        a.href = url
+                        const ext = contentType.includes('pdf') ? 'pdf' : contentType.includes('json') ? 'json' : contentType.includes('csv') ? 'csv' : contentType.includes('text') ? 'txt' : contentType.includes('word') ? 'docx' : contentType.includes('sheet') ? 'xlsx' : (contentType.split('/')[1] || 'bin')
+                        a.download = `envelope-${envelopeId.slice(0, 8)}.${ext}`
+                        a.click()
+                        URL.revokeObjectURL(url)
+                      } catch (e) {
+                        console.error('Download error:', e)
+                      }
+                    }
+
+                    return (
+                      <div style={{ background: 'var(--bg-canvas)', border: '1px solid var(--border-inner)', borderRadius: '10px', padding: '18px', textAlign: 'center', marginBottom: '16px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginBottom: '14px', color: activeView === 'raw_image' ? 'var(--success)' : 'var(--warning)', fontSize: '13px', fontWeight: 600 }}>
+                          <Eye size={16} />
+                          <span>
+                            {activeView === 'raw_image'
+                              ? `Decrypted Payload (${contentType || 'Raw Data'})`
+                              : `Masked / Obfuscated Representation (${contentType || 'Data'})`}
+                          </span>
+                        </div>
+
+                        {isImage ? (
+                          <img
+                            src={`data:${contentType || 'image/png'};base64,${imageB64}`}
+                            alt={activeView}
+                            style={{ maxWidth: '100%', maxHeight: '340px', borderRadius: '8px', border: '1px solid var(--border-outer)', boxShadow: '0 4px 20px rgba(0,0,0,0.5)', marginBottom: '14px' }}
+                          />
+                        ) : isText && textContent ? (
+                          <pre style={{ textAlign: 'left', background: 'var(--bg-card)', padding: '14px', borderRadius: '8px', border: '1px solid var(--border-outer)', maxHeight: '240px', overflowY: 'auto', fontSize: '12px', fontFamily: 'var(--font-mono)', color: 'var(--text-main)', marginBottom: '14px', whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>
+                            {textContent}
+                          </pre>
+                        ) : (
+                          <div style={{ padding: '24px', background: 'var(--bg-card)', borderRadius: '8px', border: '1px solid var(--border-outer)', marginBottom: '14px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px' }}>
+                            <FileText size={36} color="var(--primary)" />
+                            <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-main)' }}>
+                              Decrypted Binary Document ({contentType || 'application/octet-stream'})
+                            </div>
+                            <div style={{ fontSize: '11.5px', color: 'var(--text-dim)' }}>
+                              Exact original payload bytes recovered cleanly from object storage.
+                            </div>
+                          </div>
+                        )}
+
+                        <div style={{ display: 'flex', justifyContent: 'center', gap: '10px' }}>
+                          <button
+                            type="button"
+                            className="btn-secondary"
+                            onClick={handleDownload}
+                            style={{ fontSize: '12px', padding: '6px 14px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                          >
+                            <Download size={14} />
+                            <span>Download Decrypted File</span>
+                          </button>
+                        </div>
                       </div>
-                      <img
-                        src={`data:image/png;base64,${imageB64}`}
-                        alt={activeView}
-                        style={{ maxWidth: '100%', maxHeight: '340px', borderRadius: '8px', border: '1px solid var(--border-outer)', boxShadow: '0 4px 20px rgba(0,0,0,0.5)' }}
-                      />
-                    </div>
-                  )}
+                    )
+                  })()}
 
                   {/* Render Feature Vector */}
                   {activeView === 'feature_only' && (

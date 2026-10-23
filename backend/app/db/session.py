@@ -9,7 +9,9 @@ the organization's existing schema.
 
 from __future__ import annotations
 
+import os
 from collections.abc import AsyncGenerator
+from pathlib import Path
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase
@@ -21,8 +23,18 @@ settings = get_settings()
 # ---------------------------------------------------------------------------
 # Engine
 # ---------------------------------------------------------------------------
+
+# Resolve relative SQLite paths against project repository root
+resolved_db_url = settings.database_url
+if resolved_db_url.startswith("sqlite+aiosqlite:///"):
+    sqlite_rel = resolved_db_url[len("sqlite+aiosqlite:///"):]
+    if not os.path.isabs(sqlite_rel) and not sqlite_rel.startswith(":memory:"):
+        repo_root = Path(__file__).resolve().parent.parent.parent.parent
+        resolved_db_path = (repo_root / sqlite_rel).resolve()
+        resolved_db_url = f"sqlite+aiosqlite:///{resolved_db_path.as_posix()}"
+
 engine_kwargs: dict[str, object] = {"echo": settings.debug}
-if not settings.database_url.startswith("sqlite"):
+if not resolved_db_url.startswith("sqlite"):
     engine_kwargs.update(
         {
             "pool_pre_ping": True,
@@ -32,7 +44,7 @@ if not settings.database_url.startswith("sqlite"):
     )
 
 engine = create_async_engine(
-    settings.database_url,
+    resolved_db_url,
     **engine_kwargs,
 )
 

@@ -27,7 +27,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.adapters.key_service import KeyServiceAdapter
+from app.adapters.key_service import KeyServiceAdapter, KeyServiceLockedError
 from app.adapters.storage import StorageAdapter
 from app.api.auth import get_current_user
 from app.api.envelopes import get_key_service, get_storage_adapter
@@ -209,6 +209,22 @@ async def access_request(
     # 5. Decrypt and minimize data
     try:
         plaintext = retrieve_and_decrypt(envelope, key_service, storage)
+    except KeyServiceLockedError as exc:
+        await append_audit_event(
+            db=db,
+            event_type="access_deny",
+            actor_id=current_user.id,
+            actor_role=current_user.role,
+            envelope_id=envelope.id,
+            decision="deny",
+            reason="Decryption blocked: KeyService is locked",
+            job_id=target_job_uuid,
+        )
+        await db.commit()
+        raise HTTPException(
+            status_code=503,
+            detail="Key service is locked -- Shamir secret reconstruction required before data can be decrypted.",
+        ) from exc
     except Exception as exc:
         await append_audit_event(
             db=db,
@@ -248,6 +264,7 @@ async def access_request(
         reason=decision.reason,
         allowed_view=decision.allowed_view,
         data_b64=data_b64,
+        content_type=envelope.content_type,
         policy_id=decision.policy_id,
         policy_version=decision.policy_version,
     )

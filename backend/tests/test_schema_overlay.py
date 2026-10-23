@@ -91,3 +91,72 @@ async def test_schema_overlay_isolation() -> None:
         assert len(res.fetchall()) == 1
 
     await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_fresh_database_initialization_includes_key_check_value() -> None:
+    """Verify that direct fresh database initialization creates key_check_value column."""
+    engine = create_async_engine("sqlite+aiosqlite:///:memory:", echo=False)
+
+    async with engine.begin() as conn:
+        await conn.run_sync(CASBase.metadata.create_all)
+
+    def _check_columns(connection) -> list[str]:
+        insp = inspect(connection)
+        cols = insp.get_columns("cas_key_versions")
+        return [c["name"] for c in cols]
+
+    async with engine.connect() as conn:
+        columns = await conn.run_sync(_check_columns)
+        assert "key_check_value" in columns
+
+    await engine.dispose()
+
+
+def test_alembic_migration_003_upgrades_and_downgrades_safely(tmp_path) -> None:
+    """Verify Alembic migration 003 adds key_check_value to existing schema and rolls back safely.
+
+    Uses an isolated temporary SQLite database without modifying existing databases or .env.
+    """
+    import os
+    import sqlite3
+    from pathlib import Path
+
+    from alembic.config import Config
+
+    from alembic import command
+
+    repo_root = Path(__file__).resolve().parent.parent.parent
+    db_path = tmp_path / "alembic_test.db"
+
+    # Ensure clean environment for isolated test
+    orig_db_url = os.environ.pop("DATABASE_URL", None)
+    try:
+        cfg = Config(str(repo_root / "backend" / "alembic.ini"))
+        cfg.set_main_option("script_location", str(repo_root / "backend" / "alembic"))
+        cfg.set_main_option("sqlalchemy.url", f"sqlite:///{db_path.as_posix()}")
+
+        # 1. Upgrade to 002 (prior schema)
+        command.upgrade(cfg, "002_protected_scopes")
+        con = sqlite3.connect(db_path)
+        cols_002 = [r[1] for r in con.cursor().execute("PRAGMA table_info(cas_key_versions)").fetchall()]
+        con.close()
+        assert "key_check_value" not in cols_002
+
+        # 2. Upgrade to 003 (head)
+        command.upgrade(cfg, "head")
+        con = sqlite3.connect(db_path)
+        cols_003 = [r[1] for r in con.cursor().execute("PRAGMA table_info(cas_key_versions)").fetchall()]
+        con.close()
+        assert "key_check_value" in cols_003
+
+        # 3. Downgrade back to 002
+        command.downgrade(cfg, "002_protected_scopes")
+        con = sqlite3.connect(db_path)
+        cols_downgraded = [r[1] for r in con.cursor().execute("PRAGMA table_info(cas_key_versions)").fetchall()]
+        con.close()
+        assert "key_check_value" not in cols_downgraded
+    finally:
+        if orig_db_url is not None:
+            os.environ["DATABASE_URL"] = orig_db_url
+

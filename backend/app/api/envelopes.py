@@ -17,7 +17,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.adapters.factory import AdapterConfigurationError, build_key_service, build_storage_adapter
-from app.adapters.key_service import KeyServiceAdapter
+from app.adapters.key_service import KeyServiceAdapter, KeyServiceLockedError
 from app.adapters.storage import StorageAdapter, generate_object_key
 from app.api.auth import get_current_user, require_roles
 from app.core.config import get_settings
@@ -195,6 +195,24 @@ async def create_envelope(
         )
     except HTTPException:
         raise
+    except KeyServiceLockedError as exc:
+        await db.rollback()
+        try:
+            await append_audit_event(
+                db=db,
+                event_type="upload",
+                actor_id=current_user.id,
+                actor_role=current_user.role,
+                decision="deny",
+                reason="Upload blocked: KeyService is locked",
+            )
+            await db.commit()
+        except Exception:
+            await db.rollback()
+        raise HTTPException(
+            status_code=503,
+            detail="Key service is locked -- Shamir secret reconstruction required before data ingestion.",
+        ) from exc
     except Exception as exc:
         logger.exception("Upload and encryption failed: %s", exc)
         await db.rollback()
